@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<h1 class="mb-4">Dashboard</h1>
+<div class="row g-4">
+  <div class="col-12 col-lg-4">
+    <div class="card shadow-sm border-0">
+      <div class="p-3 rounded-top bg-success">
+        <canvas id="chartDailySales" height="120"></canvas>
+      </div>
+      <div class="card-body">
+        <div class="fw-semibold">Daily Sales</div>
+        <div class="text-success small mt-1">
+          <i class="bi bi-arrow-up"></i> 55% increase in today sales.
+        </div>
+        <hr class="my-3">
+        <div class="text-muted small"><i class="bi bi-clock"></i> updated 4 minutes ago</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="card shadow-sm border-0">
+      <div class="p-3 rounded-top bg-warning">
+        <canvas id="chartEmail" height="120"></canvas>
+      </div>
+      <div class="card-body">
+        <div class="fw-semibold">Email Subscriptions</div>
+        <div class="text-muted small mt-1">Last Campaign Performance</div>
+        <hr class="my-3">
+        <div class="text-muted small"><i class="bi bi-clock"></i> campaign sent 2 days ago</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="card shadow-sm border-0">
+      <div class="p-3 rounded-top bg-danger">
+        <canvas id="chartTasks" height="120"></canvas>
+      </div>
+      <div class="card-body">
+        <div class="fw-semibold">Completed Tasks</div>
+        <div class="text-muted small mt-1">Last Campaign Performance</div>
+        <hr class="my-3">
+        <div class="text-muted small"><i class="bi bi-clock"></i> campaign sent 2 days ago</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dados do Django em JSON -->
+{{ daily_sales_labels|json_script:"daily_sales_labels" }}
+{{ daily_sales_data|json_script:"daily_sales_data" }}
+{{ email_labels|json_script:"email_labels" }}
+{{ email_data|json_script:"email_data" }}
+{{ tasks_labels|json_script:"tasks_labels" }}
+{{ tasks_data|json_script:"tasks_data" }}
+
+<!-- Seu JS separado -->
+<script src="{% static 'engenharia/js/dashboard_charts.js' %}"></script>
+
+{% endblock %}
