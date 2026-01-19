@@ -1,0 +1,16 @@
+<div class="d-flex flex-column min-vh-100">
+
+  <div class="mb-3">
+    <div class="fw-bold small text-uppercase">GC INFRA</div>
+    <hr class="my-3">
+  </div>
+
+  <div class="list-group list-group-flush gap-2">
+
+    <a href="{% url 'eng_clinica:dashboard' %}" class="list-group-item list-group-item-action rounded-3 d-flex align-items-center gap-2
+              {% if request.resolver_match.url_name == 'dashboard' %}bg-primary text-white shadow border-0{% else %}border-0{% endif %}">
+      <i class="bi bi-grid-fill"></i>
+      <span>Dashboard</span>
+    </a>
+  </div>
+</div>
