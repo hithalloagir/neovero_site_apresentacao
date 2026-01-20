@@ -3,6 +3,10 @@ from django.shortcuts import render
 # Create your views here.
 
 
+def home(request):
+    return render(request, 'engenharia/home.html')
+
+
 def engenharia_clinica_graficos(request):
     context = {
         "daily_sales_labels": ["M", "T", "W", "T", "F", "S", "S"],

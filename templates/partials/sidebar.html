@@ -9,7 +9,7 @@
     <nav class="nav nav-pills flex-column px-3 gap-1 flex-grow-1">
         <span class="text-uppercase text-secondary fw-bold px-3 mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Principal</span>
         
-        <a href="#" 
+        <a href=" {% url "home" %}" 
            class="nav-link d-flex align-items-center gap-3 px-3 py-2 rounded-3 fw-medium
            {% if request.resolver_match.url_name == 'home' %}active shadow-sm{% else %}text-secondary hover-bg-light{% endif %}">
             <i class="bi bi-grid"></i>
