@@ -1,20 +1,17 @@
 <div class="d-flex flex-column h-100">
-  <div class="d-flex align-items-center gap-2 px-2 py-3">
-    <span class="fw-semibold small text-uppercase">GC INFRA</span>
+  <div class="d-flex align-items-center gap-2 px-3 py-3">
+    <span class="fw-semibold small text-uppercase text-primary">GC INFRA</span>
   </div>
-  <hr class="my-2">
+  <hr class="my-2 text-primary opacity-25">
 
-  <nav class="nav nav-pills flex-column gap-1">
-    <a href="{% url 'eng_clinica:dashboard_eng_clinica' %}" class="nav-link d-flex align-items-center gap-2 rounded-3
-              {% if request.resolver_match.url_name == 'home' %}active{% else %}text-body{% endif %}">
-      {% comment %} <i class="bi bi-grid-fill"></i> {% endcomment %}
+  <nav class="nav flex-column gap-1 px-2" aria-label="Menu principal">
+    <a href="{% url 'eng_clinica:dashboard_eng_clinica' %}" class="nav-link d-flex align-items-center gap-2 rounded-3 px-3 py-2
+              {% if request.resolver_match.url_name == 'home' %}active bg-primary text-white shadow-sm{% else %}text-primary-emphasis{% endif %}" aria-current="{% if request.resolver_match.url_name == 'home' %}page{% endif %}">
+      <i class="bi bi-house"></i>
       <span>Home</span>
     </a>
-  </nav>
-
-  <nav class="nav nav-pills flex-column gap-1">
-    <a href="{% url 'eng_clinica:dashboard_eng_clinica' %}" class="nav-link d-flex align-items-center gap-2 rounded-3
-              {% if request.resolver_match.url_name == 'dashboard_eng_clinica' %}active{% else %}text-body{% endif %}">
+    <a href="{% url 'eng_clinica:dashboard_eng_clinica' %}" class="nav-link d-flex align-items-center gap-2 rounded-3 px-3 py-2
+              {% if request.resolver_match.url_name == 'dashboard_eng_clinica' %}active bg-primary text-white shadow-sm{% else %}text-primary-emphasis{% endif %}" aria-current="{% if request.resolver_match.url_name == 'dashboard_eng_clinica' %}page{% endif %}">
       <i class="bi bi-clipboard2-pulse"></i>
       <span>Engenharia Clínica</span>
     </a>

@@ -19,26 +19,29 @@
         </div>
     </nav>
 
-    <div class="container-fluid">
-        <div class="row g-0">
-            <aside class="col-md-3 col-lg-2 d-none d-md-block bg-white border-end min-vh-100 p-3 sticky-top">
-                {% include "partials/sidebar.html" %}
-            </aside>
-
-            <div class="offcanvas offcanvas-start d-md-none" tabindex="-1" id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel">
-                <div class="offcanvas-header border-bottom">
-                    <h6 class="offcanvas-title m-0" id="sidebarOffcanvasLabel">GC INFRA</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
-                </div>
-                <div class="offcanvas-body p-3">
+    <div class="container-fluid p-0">
+        <div class="d-flex min-vh-100">
+            <aside class="d-none d-md-flex flex-column bg-primary bg-opacity-10 bg-gradient border-end border-primary border-opacity-10 shadow-sm flex-shrink-0 position-sticky top-0 min-vh-100">
+                <div class="p-3 w-100">
                     {% include "partials/sidebar.html" %}
                 </div>
-            </div>
+            </aside>
 
-            <main class="col-12 col-md-9 col-lg-10 p-4">
-                {% block content %}{% endblock %}
+            <main class="flex-grow-1">
+                <div class="container-fluid py-4 px-3 px-md-4">
+                    {% block content %}{% endblock %}
+                </div>
             </main>
+        </div>
+    </div>
 
+    <div class="offcanvas offcanvas-start d-md-none bg-primary bg-opacity-10 bg-gradient w-75" tabindex="-1" id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel">
+        <div class="offcanvas-header border-bottom border-primary border-opacity-10">
+            <h6 class="offcanvas-title m-0" id="sidebarOffcanvasLabel">GC INFRA</h6>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+        </div>
+        <div class="offcanvas-body p-3">
+            {% include "partials/sidebar.html" %}
         </div>
     </div>
     
