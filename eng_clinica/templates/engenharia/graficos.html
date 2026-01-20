@@ -79,6 +79,30 @@
             </div>
         </div>
     </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Taxa de cumprimento de prev, calib, quali e TSE (%)</p>
+                        {% comment %} <h3 class="fw-bold text-dark mb-0">87%</h3> {% endcomment %}
+                    </div>
+                    {% comment %} <div class="bg-danger bg-opacity-10 text-danger rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                        <i class="bi bi-check-circle fs-4"></i>
+                    </div> {% endcomment %}
+                </div>
+
+                <div class="mb-4">
+                    <span class="text-muted small">Status geral de conclusão</span>
+                </div>
+
+                <div style="height: 120px; position: relative;">
+                    <canvas id="chartTasks"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 {{ daily_sales_labels|json_script:"daily_sales_labels" }}

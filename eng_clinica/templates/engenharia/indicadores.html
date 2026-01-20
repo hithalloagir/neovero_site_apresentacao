@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">INDICADORES</p>
+                    </div>
+                    {% comment %} <div class="bg-success bg-opacity-10 text-success rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                        <i class="bi bi-currency-dollar fs-4"></i>
+                    </div> {% endcomment %}
+                </div>
+
+                <div class="mb-4">
+                    <span class="text-muted small">Performance da última campanha</span>
+                </div>
+                
+                {% comment %} <div class="mb-4">
+                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2">
+                        <i class="bi bi-arrow-up-right me-1"></i> +55% hoje
+                    </span>
+                    <span class="text-muted small ms-2">vs. ontem</span>
+                </div> {% endcomment %}
+
+                <div style="height: 120px; position: relative;">
+                    <canvas id="chartDailySales"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Tempo de Reparo x Tempo de Atendimento</p>
+                    </div>
+                    {% comment %} <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                        <i class="bi bi-envelope fs-4"></i>
+                    </div> {% endcomment %}
+                </div>
+
+                <div class="mb-4">
+                    <span class="text-muted small">Performance da última campanha</span>
+                </div>
+
+                <div style="height: 120px; position: relative;">
+                    <canvas id="chartEmail"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Tempo médio de reparo por unidade (dia)</p>
+                        {% comment %} <h3 class="fw-bold text-dark mb-0">87%</h3> {% endcomment %}
+                    </div>
+                    {% comment %} <div class="bg-danger bg-opacity-10 text-danger rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                        <i class="bi bi-check-circle fs-4"></i>
+                    </div> {% endcomment %}
+                </div>
+
+                <div class="mb-4">
+                    <span class="text-muted small">Status geral de conclusão</span>
+                </div>
+
+                <div style="height: 120px; position: relative;">
+                    <canvas id="chartTasks"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ daily_sales_labels|json_script:"daily_sales_labels" }}
+{{ daily_sales_data|json_script:"daily_sales_data" }}
+{{ email_labels|json_script:"email_labels" }}
+{{ email_data|json_script:"email_data" }}
+{{ tasks_labels|json_script:"tasks_labels" }}
+{{ tasks_data|json_script:"tasks_data" }}
+
+<script src="{% static 'engenharia/js/dashboard_charts.js' %}"></script>
+{% endblock %}
