@@ -4,10 +4,6 @@ function readJsonScript(id) {
     return JSON.parse(el.textContent);
 }
 
-// Configurações globais para estilo "Clean/Moderno"
-// Chart.defaults.font.family = "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
-// Chart.defaults.color = "#6c757d"; // Cor de texto padrão (text-muted do Bootstrap)
-
 function baseOptions() {
     return {
         responsive: true,
@@ -58,9 +54,15 @@ function baseOptions() {
 
 document.addEventListener("DOMContentLoaded", () => {
     // Pega dados do Django
-    const dailyLabels = readJsonScript("daily_sales_labels");
-    const dailyData = readJsonScript("daily_sales_data");
+    // --- 1. Tempo médio de atendimento por unidade(h) ---
+    const labelsAtendimento = readJsonScript("labels_atendimento"); // ID definido no HTML
+    const dataAtendimento = readJsonScript("data_atendimento");     // ID definido no HTML
 
+    // --- 2. Tempo de Reparo x Tempo de Atendimento ---
+    const scatterData = readJsonScript("dados_scatter");
+    
+
+    // --- 3. Tempo de Reparo x Tempo de Atendimento ---
     const emailLabels = readJsonScript("email_labels");
     const emailData = readJsonScript("email_data");
 
@@ -69,63 +71,93 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Elementos do DOM
     const elDaily = document.getElementById("chartDailySales");
+    const elScatter = document.getElementById("chartScatterReparo");
+
     const elEmail = document.getElementById("chartEmail");
     const elTasks = document.getElementById("chartTasks");
 
     // Verificação de segurança
-    if (!elDaily || !elEmail || !elTasks) return;
+    // if (!elDaily || !elEmail || !elTasks) return;
 
     // -------------------------------------------------------
-    // 1) Line - Daily Sales (Tema: Success/Verde)
+    // 1) Tempo Médio de Atendimento por Unidade (h)
     // -------------------------------------------------------
-    // Criando um gradiente suave para o preenchimento
-    let ctxDaily = elDaily.getContext("2d");
-    let gradientDaily = ctxDaily.createLinearGradient(0, 0, 0, 300);
-    gradientDaily.addColorStop(0, 'rgba(25, 135, 84, 0.2)'); // Bootstrap Success
-    gradientDaily.addColorStop(1, 'rgba(25, 135, 84, 0.0)');
-
     new Chart(elDaily, {
-        type: "line",
+        type: "bar",    
         data: {
-            labels: dailyLabels,
+            labels: labelsAtendimento, // Nomes das Oficinas
             datasets: [{
-                label: "Vendas",
-                data: dailyData,
-                borderColor: "#198754", // Bootstrap Success
-                backgroundColor: gradientDaily,
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4, // Curva suave
-                pointRadius: 0, // Remove pontos (aparecem só no hover)
-                pointHoverRadius: 6,
-                pointBackgroundColor: "#198754",
-                pointBorderColor: "#fff",
-                pointBorderWidth: 2
+                label: "Média (Horas)",
+                data: dataAtendimento, // Valores calculados
+                backgroundColor: "#198754", // Verde Bootstrap
+                borderRadius: 4,
+                barPercentage: 0.6,
             }]
         },
-        options: baseOptions()
+        options: {
+            ...baseOptions(),
+            plugins: {
+                ...baseOptions().plugins,
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.raw + ' horas'; // Adiciona 'horas' no tooltip
+                        }
+                    }
+                }
+            }
+        }
     });
 
     // -------------------------------------------------------
-    // 2) Bar - Email Subscriptions (Tema: Warning/Laranja)
+    // 2) Tempo de Reparo x Tempo de Atendimento)
     // -------------------------------------------------------
-    new Chart(elEmail, {
-        type: "bar",
+
+    new Chart(elScatter, {
+        type: 'scatter',
         data: {
-            labels: emailLabels,
             datasets: [{
-                label: "Inscritos",
-                data: emailData,
-                backgroundColor: "#ffc107", // Bootstrap Warning
-                hoverBackgroundColor: "#ffca2c",
-                borderRadius: 4, // Barras arredondadas
-                borderSkipped: false, // Arredonda em baixo também se quiser, ou tire essa linha
-                barPercentage: 0.6, // Barras mais finas
-                categoryPercentage: 0.8
+                label: 'Reparo x Atendimento',
+                data: scatterData, // Chart.js entende a estrutura {x: ..., y: ...}
+                backgroundColor: 'rgba(54, 162, 235, 0.6)', // Azul transparente
+                borderColor: 'rgba(54, 162, 235, 1)',
+                pointRadius: 5,
+                pointHoverRadius: 7
             }]
         },
-        options: baseOptions()
+        options: {
+            ...baseOptions(), // Suas opções padrão
+            scales: {
+                x: {
+                    title: { display: true, text: 'Tempo de Reparo (Dias)' },
+                    grid: { display: false } // Opcional: manter limpo
+                },
+                y: {
+                    title: { display: true, text: 'Tempo de Atendimento (Horas)' },
+                    grid: { color: "#f3f4f6" }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        // AQUI É A MÁGICA DO TOOLTIP CUSTOMIZADO
+                        label: function(context) {
+                            const ponto = context.raw; // Acessa o objeto original {x, y, empresa, familia}
+                            
+                            // Retorna um array de strings (cada string é uma linha no tooltip)
+                            return [
+                                `Empresa: ${ponto.empresa}`,
+                                `equipamento: ${ponto.familia || 'N/A'}`,
+                                `Reparo: ${ponto.x} dias`,
+                                `Atendimento: ${ponto.y} horas`
+                            ];
+                        }
+                    }
+                }
+            }
+        }
     });
+
 
     // -------------------------------------------------------
     // 3) Line - Completed Tasks (Tema: Danger/Vermelho)

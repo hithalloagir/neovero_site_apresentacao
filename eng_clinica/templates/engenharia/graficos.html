@@ -2,6 +2,38 @@
 {% load static %}
 
 {% block content %}
+
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-3">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label fw-bold text-muted small">Data Início</label>
+                {{ form.data_inicio }}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold text-muted small">Data Fim</label>
+                {{ form.data_fim }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold text-muted small">Empresa</label>
+                {{ form.empresa }}
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100 fw-bold">
+                    <i class="bi bi-filter"></i> Filtrar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if not labels_atendimento %}
+    <div class="alert alert-info text-center shadow-sm" role="alert">
+        <i class="bi bi-info-circle-fill me-2"></i>
+        Por favor, <strong>selecione uma Data de Início e Fim</strong> e clique em Filtrar para visualizar os indicadores.
+    </div>
+{% endif %}
+
 <div class="row g-4 mb-4">
     <div class="col-12 col-lg-4">
         <div class="card border-0 shadow-sm rounded-4 h-100">
@@ -10,21 +42,11 @@
                     <div>
                         <p class="text-uppercase text-muted fw-bold small mb-1">Tempo médio de atendimento por unidade(h)</p>
                     </div>
-                    {% comment %} <div class="bg-success bg-opacity-10 text-success rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                        <i class="bi bi-currency-dollar fs-4"></i>
-                    </div> {% endcomment %}
                 </div>
 
                 <div class="mb-4">
                     <span class="text-muted small">Performance da última campanha</span>
                 </div>
-                
-                {% comment %} <div class="mb-4">
-                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2">
-                        <i class="bi bi-arrow-up-right me-1"></i> +55% hoje
-                    </span>
-                    <span class="text-muted small ms-2">vs. ontem</span>
-                </div> {% endcomment %}
 
                 <div style="height: 120px; position: relative;">
                     <canvas id="chartDailySales"></canvas>
@@ -40,9 +62,6 @@
                     <div>
                         <p class="text-uppercase text-muted fw-bold small mb-1">Tempo de Reparo x Tempo de Atendimento</p>
                     </div>
-                    {% comment %} <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                        <i class="bi bi-envelope fs-4"></i>
-                    </div> {% endcomment %}
                 </div>
 
                 <div class="mb-4">
@@ -50,7 +69,7 @@
                 </div>
 
                 <div style="height: 120px; position: relative;">
-                    <canvas id="chartEmail"></canvas>
+                    <canvas id="chartScatterReparo"></canvas>
                 </div>
             </div>
         </div>
@@ -62,11 +81,7 @@
                 <div class="d-flex justify-content-between align-items-start mb-3">
                     <div>
                         <p class="text-uppercase text-muted fw-bold small mb-1">Tempo médio de reparo por unidade (dia)</p>
-                        {% comment %} <h3 class="fw-bold text-dark mb-0">87%</h3> {% endcomment %}
                     </div>
-                    {% comment %} <div class="bg-danger bg-opacity-10 text-danger rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                        <i class="bi bi-check-circle fs-4"></i>
-                    </div> {% endcomment %}
                 </div>
 
                 <div class="mb-4">
@@ -105,12 +120,16 @@
     </div>
 </div>
 
-{{ daily_sales_labels|json_script:"daily_sales_labels" }}
-{{ daily_sales_data|json_script:"daily_sales_data" }}
+{{ labels_atendimento|json_script:"labels_atendimento" }}
+{{ data_atendimento|json_script:"data_atendimento" }}
+
+{{ dados_scatter|json_script:"dados_scatter" }}
+
 {{ email_labels|json_script:"email_labels" }}
 {{ email_data|json_script:"email_data" }}
+
 {{ tasks_labels|json_script:"tasks_labels" }}
 {{ tasks_data|json_script:"tasks_data" }}
 
-<script src="{% static 'engenharia/js/dashboard_charts.js' %}"></script>
+<script src="{% static 'engenharia/js/dashboard_graficos_charts.js' %}"></script>
 {% endblock %}
