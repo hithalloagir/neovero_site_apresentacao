@@ -44,12 +44,12 @@
                     </div>
                 </div>
 
-                <div class="mb-4">
+                {% comment %} <div class="mb-4">
                     <span class="text-muted small">Performance da última campanha</span>
-                </div>
+                </div> {% endcomment %}
 
-                <div style="height: 120px; position: relative;">
-                    <canvas id="chartDailySales"></canvas>
+                <div style="height: 250px; position: relative;">
+                    <canvas id="chartAtendimentoMedio"></canvas>
                 </div>
             </div>
         </div>
@@ -64,11 +64,11 @@
                     </div>
                 </div>
 
-                <div class="mb-4">
+                {% comment %} <div class="mb-4">
                     <span class="text-muted small">Performance da última campanha</span>
-                </div>
+                </div> {% endcomment %}
 
-                <div style="height: 120px; position: relative;">
+                <div style="height: 250px; position: relative;">
                     <canvas id="chartScatterReparo"></canvas>
                 </div>
             </div>
@@ -80,16 +80,16 @@
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-start mb-3">
                     <div>
-                        <p class="text-uppercase text-muted fw-bold small mb-1">Tempo médio de reparo por unidade (dia)</p>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Tempo Médio de Reparo por Unidade (dia)</p>
                     </div>
                 </div>
 
-                <div class="mb-4">
+                {% comment %} <div class="mb-4">
                     <span class="text-muted small">Status geral de conclusão</span>
-                </div>
+                </div> {% endcomment %}
 
-                <div style="height: 120px; position: relative;">
-                    <canvas id="chartTasks"></canvas>
+                <div style="height: 250px; position: relative;">
+                    <canvas id="chartReparoMedio"></canvas>
                 </div>
             </div>
         </div>
@@ -112,24 +112,42 @@
                     <span class="text-muted small">Status geral de conclusão</span>
                 </div>
 
-                <div style="height: 120px; position: relative;">
-                    <canvas id="chartTasks"></canvas>
+                <div style="height: 250px; position: relative;">
+                    <canvas id="chartCumprimentoPrev"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <h5 class="text-uppercase text-muted fw-bold small mb-3">
+                    Quantidade de OS por Tipo de Manutenção
+                </h5>
+                <div style="height: 250px; position: relative;">
+                    <canvas id="chartOsPorTipoManutencao"></canvas>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+
 {{ labels_atendimento|json_script:"labels_atendimento" }}
 {{ data_atendimento|json_script:"data_atendimento" }}
 
 {{ dados_scatter|json_script:"dados_scatter" }}
 
-{{ email_labels|json_script:"email_labels" }}
-{{ email_data|json_script:"email_data" }}
+{{ labels_reparo|json_script:"labels_reparo" }}
+{{ data_reparo|json_script:"data_reparo" }}
 
-{{ tasks_labels|json_script:"tasks_labels" }}
-{{ tasks_data|json_script:"tasks_data" }}
+{{ labels_taxa_cumprimento_medio|json_script:"labels_taxa_cumprimento_medio" }}
+{{ data_taxa_cumprimento_medio|json_script:"data_taxa_cumprimento_medio" }}
+{{ taxa_cumprimento_metadados|json_script:"taxa_cumprimento_metadados" }}
+
+{{ labels_tipo_manutencao_os|json_script:"labels_tipo_manutencao_os" }}
+{{ data_tipo_manutencao_os|json_script:"data_tipo_manutencao_os" }}
 
 <script src="{% static 'engenharia/js/dashboard_graficos_charts.js' %}"></script>
 {% endblock %}

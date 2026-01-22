@@ -2,7 +2,13 @@ from django.shortcuts import render
 from datetime import datetime, timedelta
 import calendar
 from .forms import GraficoFilterForm
-from .services.graficos.graficos_dashboards import get_tempo_medio_atendimento_por_unidade, get_dispersao_reparo_atendimento
+from .services.graficos.graficos_dashboards import (
+    get_tempo_medio_atendimento_por_unidade,
+    get_dispersao_reparo_atendimento,
+    get_tempo_medio_reparo_por_unidade,
+    get_taxa_cumprimento_por_unidade,
+    get_qtde_os_por_tipo_manutencao
+)
 
 
 def home(request):
@@ -25,9 +31,22 @@ def engenharia_clinica_graficos(request):
     # 3. Variáveis de Resultado começam VAZIAS (Padrão Rígido)
     labels_atendimento = []
     data_atendimento = []
+
     dados_scatter = []
 
-    # 4. O GUARDIÃO (A Regra Rígida)
+    labels_reparo = []
+    data_reparo = []
+
+    labels_taxa_cumprimento_medio = []
+    data_taxa_cumprimento_medio = []
+    qtd_fechada = []
+    total_os = []
+    taxa_cumprimento_metadados = []
+
+    labels_tipo_manutencao_os = []
+    data_tipo_manutencao_os = []
+
+    # 4. Lógica de Filtragem
     # Só executa a busca se TIVER data_inicio E data_fim preenchidos
     if data_inicio and data_fim:
 
@@ -45,16 +64,56 @@ def engenharia_clinica_graficos(request):
             empresa=empresa
         )
 
+        # Chama o serviço do Gráfico de Barras para Tempo Médio de Reparo por Unidade (dia)
+        labels_reparo, data_reparo = get_tempo_medio_reparo_por_unidade(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
+        # Chama o serviço do Gráfico de Taxa de Cumprimento por Unidade (percentual)
+        labels_taxa_cumprimento_medio, data_taxa_cumprimento_medio, qtd_fechada, total_os = get_taxa_cumprimento_por_unidade(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
+        if labels_taxa_cumprimento_medio:
+            for fechada, total in zip(qtd_fechada, total_os):
+                taxa_cumprimento_metadados.append({
+                    'fechada': fechada,
+                    'total': total,
+                })
+
+        # Chama o serviço do Gráfico de Quantidade de OS por Tipo de Manutenção
+        labels_tipo_manutencao_os, data_tipo_manutencao_os = get_qtde_os_por_tipo_manutencao(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
     # 5. Passa para o template (Se não entrou no if, vai tudo vazio)
     context = {
         'form': form,
+        # Gráfico de Tempo Médio de Atendimento por Unidade
         'labels_atendimento': labels_atendimento,
         'data_atendimento': data_atendimento,
+
+        # Gráfico de Dispersão (Scatter Plot)
         'dados_scatter': dados_scatter,
 
-        # Seus outros gráficos (Tasks/Email) também devem seguir essa lógica se existirem
-        'tasks_labels': [],
-        'tasks_data': [],
+        # Gráfico de Tempo Médio de Reparo por Unidade (dia)
+        'labels_reparo': labels_reparo,
+        'data_reparo': data_reparo,
+
+        # Gráfico de Taxa de Cumprimento por Unidade (percentual)
+        'labels_taxa_cumprimento_medio': labels_taxa_cumprimento_medio,
+        'data_taxa_cumprimento_medio': data_taxa_cumprimento_medio,
+        'taxa_cumprimento_metadados': taxa_cumprimento_metadados,
+
+        # Gráfico de Quantidade de OS por Tipo de Manutenção
+        'labels_tipo_manutencao_os': labels_tipo_manutencao_os,
+        'data_tipo_manutencao_os': data_tipo_manutencao_os,
     }
     return render(request, 'engenharia/graficos.html', context)
 

@@ -1,5 +1,7 @@
 
 import pandas as pd
+import os
+from django.conf import settings
 from ...models import ConsultaOs
 
 
@@ -57,58 +59,200 @@ def get_tempo_medio_atendimento_por_unidade(data_inicio=None, data_fim=None, emp
 
 
 def get_dispersao_reparo_atendimento(data_inicio=None, data_fim=None, empresa=None):
-    # OTIMIZAÇÃO: Filtramos no banco ANTES de criar o DataFrame
-    # Como o formato é YYYY-MM-DD, a comparação de string funciona no SQL
-    queryset = ConsultaOs.objects.all().values(
+    """
+    Retorna dados para o gráfico de dispersão (Scatter Plot):
+    Eixo X: Tempo de Reparo (Dias)
+    Eixo Y: Tempo de Atendimento (Horas)
+    """
+
+    # 1. Busca apenas os dados necessários para o cálculo e identificação
+    queryset = ConsultaOs.objects.filter(situacao__iexact='Fechada').values(
         'abertura', 'fechamento', 'data_atendimento', 'empresa', 'equipamento'
     )
 
     if empresa:
         queryset = queryset.filter(empresa=empresa)
 
-    # Filtro de Data no Nível do Banco (String Comparison)
-    # Isso evita carregar dados de 2020 se você só quer 2025
-    if data_inicio:
-        queryset = queryset.filter(abertura__gte=str(data_inicio))
-
-    if data_fim:
-        # Garante que pegue até o final da string do dia se for apenas YYYY-MM-DD
-        queryset = queryset.filter(abertura__lte=f"{str(data_fim)} 23:59:59")
-
-    # Só agora carregamos para a memória
+    # 2. Carrega para o Pandas
     df = pd.DataFrame(list(queryset))
 
     if df.empty:
         return []
 
-    # ... (O restante do seu código de conversão pd.to_datetime continua igual) ...
-    # ... Mas agora ele vai processar muito menos linhas! ...
-
-    # 2. Conversão de Datas
+    # 3. Conversão e Limpeza de Datas
     cols_data = ['abertura', 'fechamento', 'data_atendimento']
+
     for col in cols_data:
         df[col] = pd.to_datetime(df[col], errors='coerce')
 
-    df = df.dropna(subset=cols_data)
+    # Remove linhas onde qualquer data essencial seja inválida (NaT)
+    df.dropna(subset=cols_data, inplace=True)
 
-    # 4. Cálculos das Métricas
-    df['x'] = (df['fechamento'] - df['abertura']).dt.total_seconds() / 3600 / 24
+    # 4. Filtro de Período (Intervalo de Datas)
+    if data_inicio:
+        df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+
+    if data_fim:
+        # Garante o dia inteiro (até 23:59:59)
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        return []
+
+    # 5. Cálculos das Métricas
+    # Eixo X: Dias | Eixo Y: Horas
+    df['x'] = (df['fechamento'] - df['abertura']).dt.total_seconds() / 86400  # 86400s = 1 dia
     df['y'] = (df['data_atendimento'] - df['abertura']).dt.total_seconds() / 3600
 
-    # 5. Limpeza e Ordenação
+    # 6. Remove inconsistências (Tempos negativos)
     df = df[(df['x'] >= 0) & (df['y'] >= 0)]
 
-    # LIMITADOR DE PERFORMANCE PARA O GRÁFICO
-    # Se tiver 5.000 bolinhas, o navegador trava. Vamos limitar aos últimos 1000 ou fazer uma amostra.
-    if len(df) > 1000:
-        df = df.sort_values(by='abertura', ascending=False).head(1000)
-
-    df['x'] = df['x'].round(2)
-    df['y'] = df['y'].round(2)
-
+    # 7. Formatação Final
     df = df.sort_values(by='x', ascending=True)
-
     df = df.rename(columns={'equipamento': 'familia'})
-    dados_grafico = df[['x', 'y', 'empresa', 'familia']].to_dict(orient='records')
 
-    return dados_grafico
+    # Retorna lista de dicionários otimizada
+    return df[['x', 'y', 'empresa', 'familia']].to_dict(orient='records')
+
+
+def get_tempo_medio_reparo_por_unidade(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Calcula o tempo médio de reparo por unidade (empresa).
+    """
+
+    # 1. Pré-filtro no Banco de Dados
+    queryset = ConsultaOs.objects.filter(situacao__iexact='Fechada').values(
+        'abertura', 'fechamento', 'empresa', 'situacao',
+    )
+
+    if empresa:
+        queryset = queryset.filter(empresa=empresa)
+
+    # 2. Criação do DataFrame
+    df = pd.DataFrame(list(queryset))
+
+    if df.empty:
+        return [], []
+
+    # 3. Conversão de Datas
+    df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+    df['fechamento'] = pd.to_datetime(df['fechamento'], errors='coerce')
+
+    # Remove datas inválidas
+    df = df.dropna(subset=['abertura', 'fechamento'])
+
+    # 4. Filtro de DATA
+    if data_inicio:
+        data_inicio = pd.to_datetime(data_inicio)
+        df = df[df['abertura'] >= data_inicio]
+
+    if data_fim:
+        data_fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df = df[df['abertura'] <= data_fim]
+
+    if df.empty:
+        return [], []
+
+    # 5. Cálculos
+    df['tempo_dias'] = (df['fechamento'] - df['abertura']).dt.total_seconds() / 86400
+    df = df[df['tempo_dias'] >= 0]  # Remove inconsistências
+
+    # 6. Agrupamento por Unidade
+    df_agrupado = df.groupby('empresa')['tempo_dias'].mean().reset_index()
+    df_agrupado['tempo_dias'] = df_agrupado['tempo_dias'].round(2)
+    df_agrupado = df_agrupado.sort_values(by='tempo_dias', ascending=False)
+
+    return df_agrupado['empresa'].tolist(), df_agrupado['tempo_dias'].tolist()
+
+
+def get_taxa_cumprimento_por_unidade(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Calcula a Taxa de Cumprimento (%) para PREV, CALIB, QUALI e TSE.
+    Fórmula: (Qtd Fechada / Total de OS) * 100
+    """
+    tipos_alvo = ["PREVENTIVA", "CALIBRAÇÃO", "QUALIFICAÇÃO", "TSE"]
+
+    queryset = ConsultaOs.objects.filter(tipomanutencao__in=tipos_alvo).values(
+        'abertura', 'situacao', 'empresa', 'tipomanutencao'
+    )
+
+    if empresa:
+        queryset = queryset.filter(empresa=empresa)
+
+    df = pd.DataFrame(list(queryset))
+
+    if df.empty:
+        return [], []
+
+    df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+    df.dropna(subset=['abertura'], inplace=True)
+
+    if data_inicio:
+        df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+    if data_fim:
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        return [], []
+
+    df['is_fechada'] = df['situacao'].astype(str).str.lower() == 'fechada'
+    df['is_fechada'] = df['is_fechada'].astype(int)
+
+    df_agrupado = df.groupby('empresa')['is_fechada'].agg(['sum', 'count']).reset_index()
+
+    # Fórmula: (Soma Fechadas / Total Geral) * 100
+    df_agrupado['taxa'] = (df_agrupado['sum'] / df_agrupado['count']) * 100
+
+    # Arredonda para 2 casas
+    df_agrupado['taxa'] = df_agrupado['taxa'].round(2)
+
+    # Ordena: Quem tem maior cumprimento primeiro
+    df_agrupado = df_agrupado.sort_values(by='taxa', ascending=False)
+
+    return (
+        df_agrupado['empresa'].tolist(),
+        df_agrupado['taxa'].tolist(),
+        df_agrupado['sum'].astype(int).tolist(),   # Qtd Fechada (converte float pra int)
+        df_agrupado['count'].astype(int).tolist()  # Total OS
+    )
+
+
+def get_qtde_os_por_tipo_manutencao(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Retorna a quantidade de OS por Tipo de Manutenção.
+    Regra de Unicidade: Remove linhas se (os + tag + local_api) forem idênticos.
+    """
+    queryset = ConsultaOs.objects.all().values(
+        'os', 'tag', 'local_api', 'tipomanutencao', 'empresa', 'abertura'
+    )
+
+    if empresa:
+        queryset = queryset.filter(empresa=empresa)
+
+    df = pd.DataFrame(list(queryset))
+
+    if df.empty:
+        return [], []
+
+    df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+    df.dropna(subset=['abertura'], inplace=True)
+
+    if data_inicio:
+        df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+    if data_fim:
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        return [], []
+
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    contagem = df['tipomanutencao'].value_counts()
+
+    labels = contagem.index.tolist()
+    data = contagem.values.tolist()
+
+    return labels, data

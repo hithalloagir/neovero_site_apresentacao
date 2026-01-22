@@ -54,35 +54,39 @@ function baseOptions() {
 
 document.addEventListener("DOMContentLoaded", () => {
     // Pega dados do Django
+
     // --- 1. Tempo médio de atendimento por unidade(h) ---
-    const labelsAtendimento = readJsonScript("labels_atendimento"); // ID definido no HTML
-    const dataAtendimento = readJsonScript("data_atendimento");     // ID definido no HTML
+    const labelsAtendimento = readJsonScript("labels_atendimento");
+    const dataAtendimento = readJsonScript("data_atendimento");
 
     // --- 2. Tempo de Reparo x Tempo de Atendimento ---
     const scatterData = readJsonScript("dados_scatter");
     
 
-    // --- 3. Tempo de Reparo x Tempo de Atendimento ---
-    const emailLabels = readJsonScript("email_labels");
-    const emailData = readJsonScript("email_data");
+    // --- 3. Tempo médio de reparo por unidade(dia) ---
+    const labelsReparo = readJsonScript("labels_reparo");
+    const dataReparo = readJsonScript("data_reparo");
 
-    const tasksLabels = readJsonScript("tasks_labels");
-    const tasksData = readJsonScript("tasks_data");
+    // --- 4. Taxa de cumprimento de Prev, Calib, Quali e TSE ---
+    const labels_taxa_cumprimento_medio = readJsonScript("labels_taxa_cumprimento_medio");
+    const data_taxa_cumprimento_medio = readJsonScript("data_taxa_cumprimento_medio");
+    const taxa_cumprimento_metadados = readJsonScript("taxa_cumprimento_metadados");
+
+    // --- 5. Quantidade de OS por Tipo de Manutenção ---
+    const labels_tipo_manutencao_os = readJsonScript("labels_tipo_manutencao_os");
+    const data_tipo_manutencao_os = readJsonScript("data_tipo_manutencao_os");
 
     // Elementos do DOM
-    const elDaily = document.getElementById("chartDailySales");
+    const elAtendimentoMedio = document.getElementById("chartAtendimentoMedio");
     const elScatter = document.getElementById("chartScatterReparo");
-
-    const elEmail = document.getElementById("chartEmail");
-    const elTasks = document.getElementById("chartTasks");
-
-    // Verificação de segurança
-    // if (!elDaily || !elEmail || !elTasks) return;
-
+    const elReparoMedio = document.getElementById("chartReparoMedio");
+    const elCumprimentoMedio = document.getElementById("chartCumprimentoPrev");
+    const elOsPorTipoManutencao = document.getElementById("chartOsPorTipoManutencao");
+ 
     // -------------------------------------------------------
     // 1) Tempo Médio de Atendimento por Unidade (h)
     // -------------------------------------------------------
-    new Chart(elDaily, {
+    new Chart(elAtendimentoMedio, {
         type: "bar",    
         data: {
             labels: labelsAtendimento, // Nomes das Oficinas
@@ -109,10 +113,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    
     // -------------------------------------------------------
     // 2) Tempo de Reparo x Tempo de Atendimento)
     // -------------------------------------------------------
-
     new Chart(elScatter, {
         type: 'scatter',
         data: {
@@ -122,20 +126,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 backgroundColor: 'rgba(54, 162, 235, 0.6)', // Azul transparente
                 borderColor: 'rgba(54, 162, 235, 1)',
                 pointRadius: 5,
-                pointHoverRadius: 7
             }]
         },
         options: {
             ...baseOptions(), // Suas opções padrão
             scales: {
                 x: {
-                    title: { display: true, text: 'Tempo de Reparo (Dias)' },
+                    title: { display: true, text: 'Tempo de Reparo (Dias)', font: {weight: 'bold'} },
                     grid: { display: false } // Opcional: manter limpo
                 },
                 y: {
-                    title: { display: true, text: 'Tempo de Atendimento (Horas)' },
+                    title: { display: true, text: 'Tempo de Atendimento (Horas)', font: { weight: 'bold' } },
                     grid: { color: "#f3f4f6" }
-                }
+                },
             },
             plugins: {
                 tooltip: {
@@ -160,32 +163,137 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     // -------------------------------------------------------
-    // 3) Line - Completed Tasks (Tema: Danger/Vermelho)
+    // 3) Tempo Médio de Reparo por Unidade (dia)
     // -------------------------------------------------------
-    let ctxTasks = elTasks.getContext("2d");
-    let gradientTasks = ctxTasks.createLinearGradient(0, 0, 0, 300);
-    gradientTasks.addColorStop(0, 'rgba(220, 53, 69, 0.2)'); // Bootstrap Danger
-    gradientTasks.addColorStop(1, 'rgba(220, 53, 69, 0.0)');
-
-    new Chart(elTasks, {
-        type: "line",
+    new Chart(elReparoMedio, {
+        type: "bar",    
         data: {
-            labels: tasksLabels,
+            labels: labelsReparo, // Nomes das Oficinas
             datasets: [{
-                label: "Tarefas",
-                data: tasksData,
-                borderColor: "#dc3545", // Bootstrap Danger
-                backgroundColor: gradientTasks,
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 0,
-                pointHoverRadius: 6,
-                pointBackgroundColor: "#dc3545",
-                pointBorderColor: "#fff",
-                pointBorderWidth: 2
+                label: "Média (Dias)",
+                data: dataReparo, // Valores calculados
+                backgroundColor: "#198754", // Verde Bootstrap
+                borderRadius: 4,
+                barPercentage: 0.6,
             }]
         },
-        options: baseOptions()
+        options: {
+            ...baseOptions(),
+            plugins: {
+                ...baseOptions().plugins,
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.raw + ' dias'; // Adiciona 'dias' no tooltip
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+
+    // -------------------------------------------------------
+    // 4) Taxa de Cumprimento Médio (%)
+    // -------------------------------------------------------
+    new Chart(elCumprimentoMedio, {
+        type: "bar",
+        data: {
+            labels: labels_taxa_cumprimento_medio,
+            datasets: [{
+                label: "Taxa de Cumprimento (%)",
+                data: data_taxa_cumprimento_medio,
+                // Cor dinâmica: Verde se 100%, Amarelo se < 80%, etc. (Opcional, aqui pus azul padrão)
+                backgroundColor: "#0d6efd", 
+                borderRadius: 4,
+                barPercentage: 0.6,
+            }]
+        },
+        options: {
+            ...baseOptions(),
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 11 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 105, // Deixa um respiro acima do 100%
+                    grid: { color: "#f3f4f6" },
+                    ticks: {
+                        callback: function(value) { return value + "%" } // Eixo Y com %
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const index = context.dataIndex;
+                            const taxa = context.raw;
+
+                            const detalhes = (taxa_cumprimento_metadados && taxa_cumprimento_metadados[index]) 
+                                 ? taxa_cumprimento_metadados[index] : null;
+                            
+                            if (detalhes) {
+                                return[
+                                    `Taxa: ${taxa}%`,
+                                    `Fechadas: ${detalhes.fechada}`,
+                                    `Total OS: ${detalhes.total}`
+                                ]; 
+                            } else {
+                                return `Taxa: ${taxa}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // -------------------------------------------------------
+    // 5) Quantidade de OS por Tipo de Manutenção
+    // -------------------------------------------------------
+    new Chart(elOsPorTipoManutencao, {
+        type: "bar", // Pode mudar para 'doughnut' se preferir pizza
+        data: {
+            labels: labels_tipo_manutencao_os,
+            datasets: [{
+                label: "Quantidade de OS",
+                data: data_tipo_manutencao_os,
+                backgroundColor: [
+                    "#0d6efd", "#6610f2", "#6f42c1", "#d63384", "#dc3545", "#fd7e14"
+                ],
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            ...baseOptions(),
+            indexAxis: 'y', // <--- ISSO DEIXA A BARRA HORIZONTAL (Melhor para ler nomes longos)
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 11 } }
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { 
+                        font: { size: 11, weight: 'bold' },
+                        autoSkip: false // Garante que mostre todos os tipos
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: false }, // Esconde legenda pois os nomes já estão no eixo Y
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Qtd: ${context.raw} OS`;
+                        }
+                    }
+                }
+            }
+        }
     });
 });
