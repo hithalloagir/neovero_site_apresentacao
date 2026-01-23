@@ -7,7 +7,10 @@ from .services.graficos.graficos_dashboards import (
     get_dispersao_reparo_atendimento,
     get_tempo_medio_reparo_por_unidade,
     get_taxa_cumprimento_por_unidade,
-    get_qtde_os_por_tipo_manutencao
+    get_qtde_os_por_tipo_manutencao,
+    get_qtde_os_planejadas_realizadas,
+    get_qtde_os_planejadas_n_realizadas,
+    get_os_taxa_conclusao_planejamento,
 )
 
 
@@ -46,8 +49,19 @@ def engenharia_clinica_graficos(request):
     labels_tipo_manutencao_os = []
     data_tipo_manutencao_os = []
 
+    labels_qtde_os_planejadas_realizadas = []
+    data_qtde_os_planejadas_realizadas = []
+
+    labels_qtde_os_planejadas_n_realizadas = []
+    data_qtde_os_planejadas_n_realizadas = []
+
+    labels_os_taxa_conclusao_planejamento = []
+    data_os_taxa_conclusao_planejamento = []
+    qtde_os_taxa_conclusao_planejamento = []
+    total_os_taxa_conclusao_planejamento = []
+
     # 4. Lógica de Filtragem
-    # Só executa a busca se TIVER data_inicio E data_fim preenchidos
+    # Só executa a busca se tiver data_inicio e data_fim preenchidos
     if data_inicio and data_fim:
 
         # Chama o serviço do Gráfico de Barras
@@ -92,6 +106,34 @@ def engenharia_clinica_graficos(request):
             empresa=empresa
         )
 
+        # Chama o serviço do Gráfico de Quantidade de OS Planejadas Realizadas
+        labels_qtde_os_planejadas_realizadas, data_qtde_os_planejadas_realizadas = get_qtde_os_planejadas_realizadas(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
+        # Chama o serviço do Gráfico de Quantidade de OS Planejadas Não Realizadas
+        labels_qtde_os_planejadas_n_realizadas, data_qtde_os_planejadas_n_realizadas = get_qtde_os_planejadas_n_realizadas(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
+        # Chama o serviço do Gráfico de Taxa de Conclusão de Planejamento
+        labels_os_taxa_conclusao_planejamento, data_os_taxa_conclusao_planejamento, qtde_os_taxa_conclusao_planejamento, total_os_taxa_conclusao_planejamento = get_os_taxa_conclusao_planejamento(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+        plan_taxa_metadados = []
+        if labels_os_taxa_conclusao_planejamento:
+            for qtde_fechada, total in zip(qtde_os_taxa_conclusao_planejamento, total_os_taxa_conclusao_planejamento):
+                plan_taxa_metadados.append({
+                    'fechada': qtde_fechada,
+                    'total': total,
+                })
+
     # 5. Passa para o template (Se não entrou no if, vai tudo vazio)
     context = {
         'form': form,
@@ -114,6 +156,19 @@ def engenharia_clinica_graficos(request):
         # Gráfico de Quantidade de OS por Tipo de Manutenção
         'labels_tipo_manutencao_os': labels_tipo_manutencao_os,
         'data_tipo_manutencao_os': data_tipo_manutencao_os,
+
+        # Gráfico de Quantidade de OS Planejadas Realizadas
+        'labels_qtde_os_planejadas_realizadas': labels_qtde_os_planejadas_realizadas,
+        'data_qtde_os_planejadas_realizadas': data_qtde_os_planejadas_realizadas,
+
+        # Gráfico de Quantidade de OS Planejadas Não Realizadas
+        'labels_qtde_os_planejadas_n_realizadas': labels_qtde_os_planejadas_n_realizadas,
+        'data_qtde_os_planejadas_n_realizadas': data_qtde_os_planejadas_n_realizadas,
+
+        # Gráfico de OS Taxa de Conclusão de Planejamento
+        'labels_os_taxa_conclusao_planejamento': labels_os_taxa_conclusao_planejamento,
+        'data_os_taxa_conclusao_planejamento': data_os_taxa_conclusao_planejamento,
+        'plan_taxa_metadados': plan_taxa_metadados,
     }
     return render(request, 'engenharia/graficos.html', context)
 

@@ -94,7 +94,24 @@
             </div>
         </div>
     </div>
+</div>
 
+<div class="row g-4 mb-4">
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <h5 class="text-uppercase text-muted fw-bold small mb-3">
+                    Quantidade de OS por Tipo de Manutenção
+                </h5>
+                <div style="height: 400px; position: relative;">
+                    <canvas id="chartOsPorTipoManutencao"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
     <div class="col-12 col-lg-4">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
@@ -118,15 +135,52 @@
             </div>
         </div>
     </div>
+</div>
 
-    <div class="col-12 col-lg-6">
+<div class="row g-4 mb-4">
+    <div class="col-12 col-lg-4">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <h5 class="text-uppercase text-muted fw-bold small mb-3">
-                    Quantidade de OS por Tipo de Manutenção
-                </h5>
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Quantidade de OS planejadas já realizadas</p>
+                    </div>
+                </div>
+
                 <div style="height: 250px; position: relative;">
-                    <canvas id="chartOsPorTipoManutencao"></canvas>
+                    <canvas id="chartQtdeOSPlanejdasRealizadas"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Quantidade de OS planejadas não fechadas</p>
+                    </div>
+                </div>
+
+                <div style="height: 250px; position: relative;">
+                    <canvas id="chartQtdeOSPlanejdasNFechadas"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Porcentagem de OS Planejadas Concluídas</p>
+                    </div>
+                </div>
+
+                <div style="height: 250px; position: relative;">
+                    <canvas id="chartPorcentagemOSPlanejadasConcluidas"></canvas>
                 </div>
             </div>
         </div>
@@ -148,6 +202,17 @@
 
 {{ labels_tipo_manutencao_os|json_script:"labels_tipo_manutencao_os" }}
 {{ data_tipo_manutencao_os|json_script:"data_tipo_manutencao_os" }}
+
+{{ labels_qtde_os_planejadas_realizadas|json_script:"labels_qtde_os_planejadas_realizadas" }}
+{{ data_qtde_os_planejadas_realizadas|json_script:"data_qtde_os_planejadas_realizadas" }}
+
+{{ labels_qtde_os_planejadas_n_realizadas|json_script:"labels_qtde_os_planejadas_n_realizadas" }}
+{{ data_qtde_os_planejadas_n_realizadas|json_script:"data_qtde_os_planejadas_n_realizadas" }}
+
+
+{{ labels_os_taxa_conclusao_planejamento|json_script:"labels_os_taxa_conclusao_planejamento" }}
+{{ data_os_taxa_conclusao_planejamento|json_script:"data_os_taxa_conclusao_planejamento" }}
+{{ plan_taxa_metadados|json_script:"plan_taxa_metadados" }}
 
 <script src="{% static 'engenharia/js/dashboard_graficos_charts.js' %}"></script>
 {% endblock %}

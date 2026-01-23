@@ -256,3 +256,156 @@ def get_qtde_os_por_tipo_manutencao(data_inicio=None, data_fim=None, empresa=Non
     data = contagem.values.tolist()
 
     return labels, data
+
+
+def get_qtde_os_planejadas_realizadas(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Retorna a quantidade de OS Planejadas (Causa=Planejamento) que foram Fechadas.
+    Data de referência: Fechamento.
+    """
+    queryset = ConsultaOs.objects.filter(
+        causa__iexact='PLANEJAMENTO',
+        situacao__iexact='Fechada'
+    ).values('os', 'empresa', 'fechamento', 'tag', 'local_api')
+
+    if empresa:
+        queryset = queryset.filter(empresa=empresa)
+
+    df = pd.DataFrame(list(queryset))
+
+    if df.empty:
+        return [], []
+
+    # 3. Tratamento de Data (Referência: FECHAMENTO)
+    df['fechamento'] = pd.to_datetime(df['fechamento'], errors='coerce')
+    df.dropna(subset=['fechamento'], inplace=True)
+
+    # Filtro de Data
+    if data_inicio:
+        df = df[df['fechamento'] >= pd.to_datetime(data_inicio)]
+    if data_fim:
+        # Garante o dia inteiro
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df = df[df['fechamento'] <= fim]
+
+    if df.empty:
+        return [], []
+
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    contagem = df['empresa'].value_counts()
+
+    labels = contagem.index.tolist()
+    data = contagem.values.tolist()
+
+    return labels, data
+
+
+def get_qtde_os_planejadas_n_realizadas(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Retorna a quantidade de OS Planejadas (Causa=Planejamento) que NÃO foram Fechadas.
+    Geralmente excluímos 'Cancelada' para pegar só o passivo real.
+    Data de referência: ABERTURA (pois não tem fechamento).
+    """
+    queryset = ConsultaOs.objects.filter(
+        causa__iexact='PLANEJAMENTO',
+    ).exclude(
+        situacao__in=['Fechada', 'Cancelada']
+    ).values('os', 'empresa', 'abertura', 'tag', 'local_api')
+
+    if empresa:
+        queryset = queryset.filter(empresa=empresa)
+
+    df = pd.DataFrame(list(queryset))
+
+    if df.empty:
+        return [], []
+
+    df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+    df.dropna(subset=['abertura'], inplace=True)
+
+    if data_inicio:
+        df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+    if data_fim:
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        return [], []
+
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    contagem = df['empresa'].value_counts()
+
+    labels = contagem.index.tolist()
+    data = contagem.values.tolist()
+
+    return labels, data
+
+
+def get_os_taxa_conclusao_planejamento(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Calcula a % de Conclusão de OS de Planejamento.
+    Fórmula: (Planejadas Fechadas / Total Planejadas Válidas) * 100
+    *Total Válidas = Fechadas + Pendentes (Exclui Canceladas)
+    """
+
+    # 1. Busca TODO o universo de Planejamento (Exceto Canceladas)
+    queryset = ConsultaOs.objects.filter(
+        causa__iexact='Planejamento'
+    ).exclude(
+        situacao__iexact='Cancelada'  # Removemos canceladas do cálculo de meta
+    ).values('os', 'empresa', 'situacao', 'tag', 'local_api', 'fechamento', 'abertura')
+
+    # 2. Filtro de Empresa
+    if empresa:
+        queryset = queryset.filter(empresa=empresa)
+
+    df = pd.DataFrame(list(queryset))
+
+    if df.empty:
+        return [], [], [], []
+
+    # 3. Tratamento de Data
+    # DICA: Para cálculo de taxa, geralmente usamos a 'abertura' ou 'fechamento' como base.
+    # Se você quer ver a taxa do planejamento DE JANEIRO, use a data de competência (abertura ou uma data_programada).
+    # Aqui usaremos 'abertura' para ser consistente com o gráfico de Pendências.
+    df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+    df.dropna(subset=['abertura'], inplace=True)
+
+    if data_inicio:
+        df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+    if data_fim:
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        return [], [], [], []
+
+    # 4. REMOÇÃO DE DUPLICATAS
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    # 5. Cálculo das Métricas
+    # Cria coluna binária: 1 se Fechada, 0 se não (Aberta, Pendente, etc)
+    df['is_fechada'] = df['situacao'].astype(str).str.lower() == 'fechada'
+    df['is_fechada'] = df['is_fechada'].astype(int)
+
+    # Agrupa
+    df_agrupado = df.groupby('empresa')['is_fechada'].agg(['sum', 'count']).reset_index()
+    # sum = Quantidade Fechada
+    # count = Total Planejado (Universo)
+
+    # Calcula %
+    df_agrupado['taxa'] = (df_agrupado['sum'] / df_agrupado['count']) * 100
+    df_agrupado['taxa'] = df_agrupado['taxa'].round(2)
+
+    # Ordena melhor desempenho primeiro
+    df_agrupado = df_agrupado.sort_values(by='taxa', ascending=False)
+
+    # Retorna: Labels, Taxas, Numerador, Denominador (para o Tooltip)
+    return (
+        df_agrupado['empresa'].tolist(),
+        df_agrupado['taxa'].tolist(),
+        df_agrupado['sum'].astype(int).tolist(),
+        df_agrupado['count'].astype(int).tolist()
+    )

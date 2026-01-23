@@ -76,12 +76,30 @@ document.addEventListener("DOMContentLoaded", () => {
     const labels_tipo_manutencao_os = readJsonScript("labels_tipo_manutencao_os");
     const data_tipo_manutencao_os = readJsonScript("data_tipo_manutencao_os");
 
+    // --- 6. Quantidade de OS Planejadas já Realizadas ---
+    const labels_qtde_os_planejadas_realizadas = readJsonScript("labels_qtde_os_planejadas_realizadas");
+    const data_qtde_os_planejadas_realizadas = readJsonScript("data_qtde_os_planejadas_realizadas");
+
+    // --- 7. Quantidade de OS Planejadas Não Fechadas ---
+    const labels_qtde_os_planejadas_n_realizadas = readJsonScript("labels_qtde_os_planejadas_n_realizadas");
+    const data_qtde_os_planejadas_n_realizadas = readJsonScript("data_qtde_os_planejadas_n_realizadas");
+
+    //--- 8. Taxa de Conclusão de OS de Planejamento ---
+    const labels_os_taxa_conclusao_planejamento = readJsonScript("labels_os_taxa_conclusao_planejamento");
+    const data_os_taxa_conclusao_planejamento = readJsonScript("data_os_taxa_conclusao_planejamento");
+    const plan_taxa_metadados = readJsonScript("plan_taxa_metadados");
+
+
     // Elementos do DOM
     const elAtendimentoMedio = document.getElementById("chartAtendimentoMedio");
     const elScatter = document.getElementById("chartScatterReparo");
     const elReparoMedio = document.getElementById("chartReparoMedio");
     const elCumprimentoMedio = document.getElementById("chartCumprimentoPrev");
     const elOsPorTipoManutencao = document.getElementById("chartOsPorTipoManutencao");
+    const elQtdeOsPlanejadasRealizadas = document.getElementById("chartQtdeOSPlanejdasRealizadas");
+    const elQtdeOsPlanejadasNFechadas = document.getElementById("chartQtdeOSPlanejdasNFechadas");
+    const chartPorcentagemOSPlanejadasConcluidas = document.getElementById("chartPorcentagemOSPlanejadasConcluidas");
+
  
     // -------------------------------------------------------
     // 1) Tempo Médio de Atendimento por Unidade (h)
@@ -266,11 +284,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     "#0d6efd", "#6610f2", "#6f42c1", "#d63384", "#dc3545", "#fd7e14"
                 ],
                 borderRadius: 4,
+                barPercentage: 0.9,
+                categoryPercentage: 0.9
             }]
         },
         options: {
             ...baseOptions(),
-            indexAxis: 'y', // <--- ISSO DEIXA A BARRA HORIZONTAL (Melhor para ler nomes longos)
+            indexAxis: 'y',
+            interaction: {
+                mode: 'nearest',
+                axis: 'y',
+                intersect: false,
+            },
             scales: {
                 x: {
                     grid: { display: false },
@@ -296,4 +321,143 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     });
+
+    // -------------------------------------------------------
+    // 6) Quantidade de OS Planejadas já Realizadas
+    // -------------------------------------------------------
+    new Chart(elQtdeOsPlanejadasRealizadas, {
+        type: "bar",
+        data: {
+            labels: labels_qtde_os_planejadas_realizadas,
+            datasets: [{
+                label: "Planejadas Concluídas",
+                data: data_qtde_os_planejadas_realizadas,
+                backgroundColor: "#198754", // Verde Sucesso
+                borderRadius: 4,
+                barPercentage: 0.6,
+            }]
+        },
+        options: {
+            ...baseOptions(),
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 11 } }
+                },
+                y: {
+                    grid: { color: "#f3f4f6" },
+                    ticks: { 
+                        font: { size: 11 },
+                        beginAtZero: true 
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Concluídas: ${context.raw}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // -------------------------------------------------------
+    // 7) Quantidade de OS Planejadas não fechadas
+    // -------------------------------------------------------
+    new Chart(elQtdeOsPlanejadasNFechadas, {
+        type: "bar",
+        data: {
+            labels: labels_qtde_os_planejadas_n_realizadas,
+            datasets: [{
+                label: "Planejadas Não Fechadas",
+                data: data_qtde_os_planejadas_n_realizadas,
+                backgroundColor: "#198754", // Verde Sucesso
+                borderRadius: 4,
+                barPercentage: 0.6,
+            }]
+        },
+        options: {
+            ...baseOptions(),
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 11 } }
+                },
+                y: {
+                    grid: { color: "#f3f4f6" },
+                    ticks: { 
+                        font: { size: 11 },
+                        beginAtZero: true 
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Pendentes: ${context.raw}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // -------------------------------------------------------
+    // 7) OS Taxa de Conclusão de Planejamento
+    // -------------------------------------------------------
+    new Chart(chartPorcentagemOSPlanejadasConcluidas, {
+        type: "bar",
+        data: {
+            labels: labels_os_taxa_conclusao_planejamento,
+            datasets: [{
+                label: "Conclusão (%)",
+                data: data_os_taxa_conclusao_planejamento,
+                backgroundColor: "#0dcaf0", // Azul Ciano (Info)
+                borderRadius: 4,
+                barPercentage: 0.6,
+            }]
+        },
+        options: {
+            ...baseOptions(),
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 11 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 105,
+                    grid: { color: "#f3f4f6" },
+                    ticks: { callback: function(v) { return v + "%" } }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const index = context.dataIndex;
+                            const det = plan_taxa_metadados ? plan_taxa_metadados[index] : null;
+                            const pct = context.raw;
+                            
+                            if (det) {
+                                return [
+                                    `Taxa: ${pct}%`,
+                                    `Realizadas: ${det.fechada}`,
+                                    `Total Planejado: ${det.total}`
+                                ];
+                            }
+                            return `Taxa: ${pct}%`;
+                        }
+                    }
+                }
+            }
+        }
+        });
 });
