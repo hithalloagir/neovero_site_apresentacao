@@ -11,6 +11,10 @@ from .services.graficos.graficos_dashboards import (
     get_qtde_os_planejadas_realizadas,
     get_qtde_os_planejadas_n_realizadas,
     get_os_taxa_conclusao_planejamento,
+    get_taxa_disponibilidade_equipamentos,
+    get_qtde_equipamentos_por_unidade,
+    get_idade_media_equipamentos_por_unidade,
+    get_idade_media_equipamentos_por_familia
 )
 
 
@@ -59,6 +63,19 @@ def engenharia_clinica_graficos(request):
     data_os_taxa_conclusao_planejamento = []
     qtde_os_taxa_conclusao_planejamento = []
     total_os_taxa_conclusao_planejamento = []
+    plan_taxa_metadados = []
+
+    labels_disponibilidade_equipamentos = []
+    data_disponibilidade_equipamentos = []
+
+    labels_equipamentos_unidade = []
+    data_equipamentos_unidade = []
+
+    labels_idade_equipamentos_unidade = []
+    data_idade_equipamentos_unidade = []
+
+    labels_idade_media_equipamentos_familia = []
+    data_idade_media_equipamentos_familia = []
 
     # 4. Lógica de Filtragem
     # Só executa a busca se tiver data_inicio e data_fim preenchidos
@@ -126,13 +143,41 @@ def engenharia_clinica_graficos(request):
             data_fim=data_fim,
             empresa=empresa
         )
-        plan_taxa_metadados = []
+
         if labels_os_taxa_conclusao_planejamento:
             for qtde_fechada, total in zip(qtde_os_taxa_conclusao_planejamento, total_os_taxa_conclusao_planejamento):
                 plan_taxa_metadados.append({
                     'fechada': qtde_fechada,
                     'total': total,
                 })
+
+        # Chama o serviço do Gráfico de Taxa de Disponibilidade de Equipamentos
+        labels_disponibilidade_equipamentos, data_disponibilidade_equipamentos = get_taxa_disponibilidade_equipamentos(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
+        # Chama o serviço do Gráfico de Quantidade de Equipamentos por Unidade
+        labels_equipamentos_unidade, data_equipamentos_unidade = get_qtde_equipamentos_por_unidade(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
+        # Chama o serviço do Gráfico de Idade Média dos Equipamentos por Unidade
+        labels_idade_equipamentos_unidade, data_idade_equipamentos_unidade = get_idade_media_equipamentos_por_unidade(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
+        # Chama o serviço do Gráfico de Idade Média dos Equipamentos por Família
+        labels_idade_media_equipamentos_familia, data_idade_media_equipamentos_familia = get_idade_media_equipamentos_por_familia(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
 
     # 5. Passa para o template (Se não entrou no if, vai tudo vazio)
     context = {
@@ -169,6 +214,23 @@ def engenharia_clinica_graficos(request):
         'labels_os_taxa_conclusao_planejamento': labels_os_taxa_conclusao_planejamento,
         'data_os_taxa_conclusao_planejamento': data_os_taxa_conclusao_planejamento,
         'plan_taxa_metadados': plan_taxa_metadados,
+
+        # Gráfico de Taxa de Disponibilidade de Equipamentos
+        'labels_disponibilidade_equipamentos': labels_disponibilidade_equipamentos,
+        'data_disponibilidade_equipamentos': data_disponibilidade_equipamentos,
+
+        # Gráfico de Quantidade de Equipamentos por Unidade
+        'labels_equipamentos_unidade': labels_equipamentos_unidade,
+        'data_equipamentos_unidade': data_equipamentos_unidade,
+
+        # Gráfico de Idade Média dos Equipamentos por Unidade
+        'labels_idade_equipamentos_unidade': labels_idade_equipamentos_unidade,
+        'data_idade_equipamentos_unidade': data_idade_equipamentos_unidade,
+
+        # Gráfico de Idade Média dos Equipamentos por Família
+        'labels_idade_media_equipamentos_familia': labels_idade_media_equipamentos_familia,
+        'data_idade_media_equipamentos_familia': data_idade_media_equipamentos_familia,
+
     }
     return render(request, 'engenharia/graficos.html', context)
 

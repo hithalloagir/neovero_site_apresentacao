@@ -89,6 +89,29 @@ document.addEventListener("DOMContentLoaded", () => {
     const data_os_taxa_conclusao_planejamento = readJsonScript("data_os_taxa_conclusao_planejamento");
     const plan_taxa_metadados = readJsonScript("plan_taxa_metadados");
 
+    //--- 9. Taxa de Disponibilidade Geral dos Equipamentos ---
+    const labels_disponibilidade_equipamentos = readJsonScript("labels_disponibilidade_equipamentos");
+    const data_disponibilidade_equipamentos = readJsonScript("data_disponibilidade_equipamentos");
+
+    //--- 10. Taxa de Disponibilidade dos Equipamentos Críticos ---
+
+    //--- 11. Quantidade de Equipamentos Cadastrados por Unidade ---
+    const labels_equipamentos_unidade = readJsonScript("labels_equipamentos_unidade");
+    const data_equipamentos_unidade = readJsonScript("data_equipamentos_unidade");
+
+    //--- 12. Quantidade de Equipamentos Críticos por Unidade ---
+
+    //--- 13. Tempo 1 atendimento equip Critico (h) ---
+
+    //--- 14. Idade dos Equipamentos por Unidade (anos) ---
+    const labels_idade_equipamentos_unidade = readJsonScript("labels_idade_equipamentos_unidade");
+    const data_idade_equipamentos_unidade = readJsonScript("data_idade_equipamentos_unidade");
+
+    //--- 15. Idade dos Equipamentos por família (anos) ---
+    const labels_idade_media_equipamentos_familia = readJsonScript("labels_idade_media_equipamentos_familia");
+    const data_idade_media_equipamentos_familia = readJsonScript("data_idade_media_equipamentos_familia");
+
+    
 
     // Elementos do DOM
     const elAtendimentoMedio = document.getElementById("chartAtendimentoMedio");
@@ -98,7 +121,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const elOsPorTipoManutencao = document.getElementById("chartOsPorTipoManutencao");
     const elQtdeOsPlanejadasRealizadas = document.getElementById("chartQtdeOSPlanejdasRealizadas");
     const elQtdeOsPlanejadasNFechadas = document.getElementById("chartQtdeOSPlanejdasNFechadas");
-    const chartPorcentagemOSPlanejadasConcluidas = document.getElementById("chartPorcentagemOSPlanejadasConcluidas");
+    const elPorcentagemOSPlanejadasConcluidas = document.getElementById("chartPorcentagemOSPlanejadasConcluidas");
+    const elTaxaDisponibilidadeEquipamentos = document.getElementById("chartTaxaDisponibilidadeEquipamentos");
+    const elchartQTDEquipamentosUnidade = document.getElementById("chartQTDEquipamentosUnidade");
+    const elchartIdadeMediaEquipamentosUnidade = document.getElementById("chartIdadeMediaEquipamentosUnidade");
+    const elchartIdadeFamiliaEquipamentos = document.getElementById("chartIdadeFamiliaEquipamentos");
+
 
  
     // -------------------------------------------------------
@@ -409,9 +437,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // -------------------------------------------------------
-    // 7) OS Taxa de Conclusão de Planejamento
+    // 8) OS Taxa de Conclusão de Planejamento
     // -------------------------------------------------------
-    new Chart(chartPorcentagemOSPlanejadasConcluidas, {
+    new Chart(elPorcentagemOSPlanejadasConcluidas, {
         type: "bar",
         data: {
             labels: labels_os_taxa_conclusao_planejamento,
@@ -459,5 +487,199 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
         }
+    });
+
+    // -------------------------------------------------------
+    // 9) Taxa de Disponibilidade de Equipamentos
+    // -------------------------------------------------------
+    elTaxaDisponibilidadeEquipamentos.innerHTML = ''; // Limpa conteúdo anterior, se houver
+
+    labels_disponibilidade_equipamentos.forEach((hospital, index) => {
+        const valor = data_disponibilidade_equipamentos[index];
+        const resto = (100 - valor).toFixed(2);
+
+        const colDiv = document.createElement('div');
+        colDiv.className = "col-12 col-md-6 col-lg-3";
+
+        let color = "#198754"; // Verde
+        if (valor < 95) color = "#ffc107"; // Amarelo
+        if (valor < 50) color = "#dc3545"; // Vermelho
+
+        colDiv.innerHTML = `
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body p-3 text-center">
+                    <h6 class="text-muted fw-bold mb-0">${hospital}</h6>
+                    <div style="height: 150px; position: relative;">
+                        <canvas id="gauge_${index}"></canvas>
+                        <div style="position: absolute; top: 60%; left: 0; right: 0; text-align: center;">
+                            <span class="h4 fw-bold" style="color: ${color}">${valor}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        elTaxaDisponibilidadeEquipamentos.appendChild(colDiv);
+
+        const ctx = document.getElementById(`gauge_${index}`);
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Disponível', 'Indisponível'],
+                datasets: [{
+                    data: [valor, resto],
+                    backgroundColor: [color, '#e9ecef'],
+                    borderWidth: 0,
+                    cutout: '75%',
+                    circumference: 180,
+                    rotation: 270,
+                }] 
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, 
+                tooltip: { enabled: false } }
+            }
+            
         });
+    }); 
+
+    // -------------------------------------------------------
+    // 10) Taxa de Disponibilidade dos Equipamentos Críticos
+    // -------------------------------------------------------
+
+    // -------------------------------------------------------
+    // 11) Quantidade de Equipamentos Cadastrados por Unidade
+    // -------------------------------------------------------
+    new Chart(elchartQTDEquipamentosUnidade, {
+        type: "doughnut",
+        data: {
+            labels: labels_equipamentos_unidade,
+            datasets: [{
+                label: "Quantidade de Equipamentos",
+                data: data_equipamentos_unidade,
+                backgroundColor: [
+                    "#0d6efd", "#6610f2", "#6f42c1", "#d63384", "#dc3545", "#fd7e14", "#198754", "#20c997", "#0dcaf0"
+                ],
+                borderRadius: 4,
+                barPercentage: 0.9,
+                categoryPercentage: 0.9
+            }]
+        },
+        options: {
+            ...baseOptions(),
+            plugins: {
+                legend: { display: true, position: 'right', labels: { usePointStyle: true } },   
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.raw;
+                            const total = context.chart._metasets[context.datasetIndex].total;
+                            const percentage = ((value / total) * 100).toFixed(1) + "%";
+                            return `${context.label}: ${value} (${percentage})`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // -------------------------------------------------------
+    // 12) Quantidade de Equipamentos Críticos por Unidade
+    // -------------------------------------------------------
+
+    // -------------------------------------------------------
+    // 13) Tempo 1 atendimento equip Critico (h)
+    // -------------------------------------------------------
+
+    // -------------------------------------------------------
+    // 14) Idade dos Equipamentos por Unidade (anos)
+    // -------------------------------------------------------
+    new Chart(elchartIdadeMediaEquipamentosUnidade, {
+        type: "bar",
+        data: {
+            labels: labels_idade_equipamentos_unidade,
+            datasets: [{
+                label: "Idade Média (Anos)",
+                data: data_idade_equipamentos_unidade,
+                backgroundColor: "#198754",
+                borderRadius: 4,
+                barPercentage: 0.6,
+            }]
+        },
+        options: {
+            ...baseOptions(),
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 11 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: "#f3f4f6", borderDash: [5, 5] },
+                    ticks: { font: { size: 11 } },
+                    title: { display: true, text: 'Anos', font: { weight: 'bold' } }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Idade: ${context.raw} anos`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // -------------------------------------------------------
+    // 15) Idade dos Equipamentos por família (anos)
+    // -------------------------------------------------------
+    new Chart(elchartIdadeFamiliaEquipamentos, {
+        type: "bar",
+        data: {
+            labels: labels_idade_media_equipamentos_familia,
+            datasets: [{
+                label: "Idade Média (Anos)",
+                data: data_idade_media_equipamentos_familia,
+                backgroundColor: "#0d6efd",
+                borderRadius: 4,
+                barPercentage: 0.7,
+            }]
+        },
+        options: {
+            ...baseOptions(),
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        font: { size: 11 },
+                        autoSkip: false,
+                        maxRotation: 45,
+                        minRotation: 0
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: "#f3f4f6",
+                        borderDash: [5, 5]
+                    },
+                    title: { display: true, text: 'Anos', }
+                }
+            }
+        },
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return `Idade: ${context.raw} anos`;
+                    }
+                }
+            }
+        }   
+    });
 });

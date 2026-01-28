@@ -187,6 +187,73 @@
     </div>
 </div>
 
+<div class="row g-4 mb-4">
+    <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Taxa de Disponibilidade Geral dos Equipamentos</p>
+                    </div>
+                </div>
+
+                {% comment %} <div style="height: 250px; position: relative;">
+                    <canvas id="chartTaxaDisponibilidadeEquipamentos"></canvas>
+                </div> {% endcomment %}
+                <div class="row g-4 mb-4" id="chartTaxaDisponibilidadeEquipamentos">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <h5 class="text-uppercase text-muted fw-bold small mb-3">
+                    Qtde de Equipamentos Cadastrados por Unidade
+                </h5>
+                <p class="text-muted small mb-2">Filtro por Data de Cadastro</p>
+                
+                <div style="height: 300px; position: relative;">
+                    <canvas id="chartQTDEquipamentosUnidade"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+</div>
+
+<div class="row g-4 mb-4"> 
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <h5 class="text-uppercase text-muted fw-bold small mb-3">
+                    Idade Média dos Equipamentos por Unidade (Anos)
+                </h5>
+                <div style="height: 250px; position: relative;">
+                    <canvas id="chartIdadeMediaEquipamentosUnidade"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <h5 class="text-uppercase text-muted fw-bold small mb-3">
+                    Idade dos Equipamentos por Família (Anos) - Top 20
+                </h5>
+                <div style="height: 350px; position: relative;">
+                    <canvas id="chartIdadeFamiliaEquipamentos"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 {{ labels_atendimento|json_script:"labels_atendimento" }}
 {{ data_atendimento|json_script:"data_atendimento" }}
@@ -213,6 +280,19 @@
 {{ labels_os_taxa_conclusao_planejamento|json_script:"labels_os_taxa_conclusao_planejamento" }}
 {{ data_os_taxa_conclusao_planejamento|json_script:"data_os_taxa_conclusao_planejamento" }}
 {{ plan_taxa_metadados|json_script:"plan_taxa_metadados" }}
+
+{{ labels_disponibilidade_equipamentos|json_script:"labels_disponibilidade_equipamentos" }}
+{{ data_disponibilidade_equipamentos|json_script:"data_disponibilidade_equipamentos" }}
+
+{{ labels_equipamentos_unidade|json_script:"labels_equipamentos_unidade" }}
+{{ data_equipamentos_unidade|json_script:"data_equipamentos_unidade" }}
+
+{{ labels_idade_equipamentos_unidade|json_script:"labels_idade_equipamentos_unidade"}}
+{{ data_idade_equipamentos_unidade|json_script:"data_idade_equipamentos_unidade"}}
+
+{{ labels_idade_media_equipamentos_familia|json_script:"labels_idade_media_equipamentos_familia"}}
+{{ data_idade_media_equipamentos_familia|json_script:"data_idade_media_equipamentos_familia"}}
+
 
 <script src="{% static 'engenharia/js/dashboard_graficos_charts.js' %}"></script>
 {% endblock %}

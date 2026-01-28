@@ -83,3 +83,26 @@ class EtlWatermark(models.Model):
     class Meta:
         managed = False
         db_table = 'etl_watermark'
+
+
+class ConsultaEquipamentos(models.Model):
+    id_hash = models.CharField(primary_key=True, max_length=32)
+    empresa = models.CharField(max_length=255, blank=True, null=True)
+    grupo_setor = models.CharField(max_length=255, blank=True, null=True)
+    setor = models.CharField(max_length=255, blank=True, null=True)
+    familia = models.CharField(max_length=255, blank=True, null=True)
+    modelo = models.CharField(max_length=255, blank=True, null=True)
+    tipoequipamento = models.CharField(max_length=255, blank=True, null=True)
+    fabricante = models.CharField(max_length=255, blank=True, null=True)
+    tag = models.CharField(max_length=255, blank=True, null=True)
+    nserie = models.CharField(max_length=255, blank=True, null=True)
+    tombamento = models.CharField(max_length=255, blank=True, null=True)
+    cadastro = models.DateTimeField(blank=True, null=True)
+    instalacao = models.DateTimeField(blank=True, null=True)
+    garantia = models.DateTimeField(blank=True, null=True)
+    local_api = models.CharField(max_length=50, blank=True, null=True)
+    updated_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'consulta_equipamentos'

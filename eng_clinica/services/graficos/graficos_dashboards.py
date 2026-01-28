@@ -1,8 +1,8 @@
-
 import pandas as pd
-import os
-from django.conf import settings
-from ...models import ConsultaOs
+import numpy as np
+from django.db.models import Count, Q
+from ...models import ConsultaOs, ConsultaEquipamentos
+from datetime import datetime
 
 
 def get_tempo_medio_atendimento_por_unidade(data_inicio=None, data_fim=None, empresa=None):
@@ -370,14 +370,14 @@ def get_os_taxa_conclusao_planejamento(data_inicio=None, data_fim=None, empresa=
     # DICA: Para cálculo de taxa, geralmente usamos a 'abertura' ou 'fechamento' como base.
     # Se você quer ver a taxa do planejamento DE JANEIRO, use a data de competência (abertura ou uma data_programada).
     # Aqui usaremos 'abertura' para ser consistente com o gráfico de Pendências.
-    df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
-    df.dropna(subset=['abertura'], inplace=True)
+    df['fechamento'] = pd.to_datetime(df['fechamento'], errors='coerce')
+    df.dropna(subset=['fechamento'], inplace=True)
 
     if data_inicio:
-        df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+        df = df[df['fechamento'] >= pd.to_datetime(data_inicio)]
     if data_fim:
         fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
-        df = df[df['abertura'] <= fim]
+        df = df[df['fechamento'] <= fim]
 
     if df.empty:
         return [], [], [], []
@@ -387,7 +387,9 @@ def get_os_taxa_conclusao_planejamento(data_inicio=None, data_fim=None, empresa=
 
     # 5. Cálculo das Métricas
     # Cria coluna binária: 1 se Fechada, 0 se não (Aberta, Pendente, etc)
-    df['is_fechada'] = df['situacao'].astype(str).str.lower() == 'fechada'
+    df['is_fechada'] = (
+        (df['situacao'].astype(str).str.lower() == 'fechada') & (df['fechamento'].notnull())
+    )
     df['is_fechada'] = df['is_fechada'].astype(int)
 
     # Agrupa
@@ -409,3 +411,269 @@ def get_os_taxa_conclusao_planejamento(data_inicio=None, data_fim=None, empresa=
         df_agrupado['sum'].astype(int).tolist(),
         df_agrupado['count'].astype(int).tolist()
     )
+
+
+def get_taxa_disponibilidade_equipamentos(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Calcula a Disponibilidade Geral Dinâmica.
+    Inventário = Contagem distinta de TAGs por empresa no banco todo (ou filtrado).
+    Fórmula: (Total Horas Possíveis - Horas Parado) / Total Horas Possíveis
+    """
+
+    # === PASSO 1: Descobrir o Inventário Dinamicamente ===
+    # Contamos quantas TAGs únicas existem para cada empresa.
+    # OBS: Usamos .all() para pegar o inventário TOTAL, independente se quebrou este mês ou não.
+    # Se quiser considerar apenas equipamentos ativos recentemente, precisaria de uma regra de data aqui.
+    qs_inventario = ConsultaOs.objects.values('empresa').annotate(
+        qtd_equipamentos=Count('tag', distinct=True)
+    ).filter(
+        tag__isnull=False
+    ).exclude(tag='')  # Garante que não conta tags vazias
+
+    if empresa:
+        qs_inventario = qs_inventario.filter(empresa=empresa)
+
+    # Transforma em dicionário para acesso rápido: {'HUGOL': 3484, 'CRER': 2081...}
+    inventario_dict = {
+        item['empresa']: item['qtd_equipamentos']
+        for item in qs_inventario
+        if item['empresa']  # Ignora empresa None/Vazia
+    }
+
+    # Se não achou nenhum equipamento, retorna vazio
+    if not inventario_dict:
+        return [], []
+
+    # === PASSO 2: Definição do Período (Dias) ===
+    if data_inicio and data_fim:
+        dt_ini = pd.to_datetime(data_inicio)
+        dt_fim = pd.to_datetime(data_fim)
+        dias_periodo = (dt_fim - dt_ini).days + 1
+    else:
+        dias_periodo = 30  # Default
+
+    # === PASSO 3: Busca de Dados de "TempoParaResolver" (Downtime) ===
+    # Busca OS fechadas no período para calcular quanto tempo ficou parado
+    queryset = ConsultaOs.objects.filter(
+        situacao__iexact='Fechada',
+        fechamento__isnull=False,
+        abertura__isnull=False
+    ).values('empresa', 'abertura', 'fechamento')
+
+    if data_inicio:
+        queryset = queryset.filter(abertura__gte=data_inicio)
+    if data_fim:
+        queryset = queryset.filter(abertura__lte=f"{data_fim} 23:59:59")
+    if empresa:
+        queryset = queryset.filter(empresa=empresa)
+
+    df = pd.DataFrame(list(queryset))
+
+    # === PASSO 4: Cálculo Final ===
+    labels = []
+    valores = []
+
+    # Itera sobre as empresas encontradas no inventário dinâmico
+    for nome_empresa, qtd_equipamentos in inventario_dict.items():
+
+        # 4.1. Total Potencial (24h * Dias * Qtd Equipamentos REAIS do Banco)
+        horas_potenciais = 24 * dias_periodo * qtd_equipamentos
+
+        # 4.2. Horas Parado (Downtime)
+        horas_parado = 0
+
+        if not df.empty:
+            # Filtra o DF para pegar apenas as OS dessa empresa
+            df_unidade = df[df['empresa'] == nome_empresa].copy()
+
+            if not df_unidade.empty:
+                df_unidade['abertura'] = pd.to_datetime(df_unidade['abertura'])
+                df_unidade['fechamento'] = pd.to_datetime(df_unidade['fechamento'])
+
+                # Calcula duração em horas
+                df_unidade['duracao_segundos'] = (df_unidade['fechamento'] - df_unidade['abertura']).dt.total_seconds()
+                # Remove inconsistências (tempos negativos)
+                df_unidade = df_unidade[df_unidade['duracao_segundos'] >= 0]
+
+                horas_parado = df_unidade['duracao_segundos'].sum() / 3600
+
+        # 4.3. Taxa
+        if horas_potenciais > 0:
+            taxa = (horas_potenciais - horas_parado) / horas_potenciais
+            taxa = taxa * 100
+        else:
+            taxa = 0
+
+        labels.append(nome_empresa)
+        valores.append(round(taxa, 2))
+
+    return labels, valores
+
+
+def get_qtde_equipamentos_por_unidade(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Retorna a quantidade de equipamentos cadastrados por unidade.
+    Baseado no model ConsultaEquipamentos.
+    Filtro de Data: CADASTRO.
+    """
+    # 1. Busca os dados (Empresa, Tag e Garantia)
+    queryset = ConsultaEquipamentos.objects.all().values('empresa', 'tag', 'cadastro')
+
+    if empresa:
+        queryset = queryset.filter(empresa=empresa)
+
+    df = pd.DataFrame(list(queryset))
+
+    if df.empty:
+        return [], []
+
+    # 2. Tratamento de Data (Baseado na Cadastro)
+    df['cadastro'] = pd.to_datetime(df['cadastro'], errors='coerce')
+
+    # Se quiser filtrar apenas quem tem garantia válida no período:
+    if data_inicio:
+        df = df[df['cadastro'] >= pd.to_datetime(data_inicio)]
+    if data_fim:
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df = df[df['cadastro'] <= fim]
+
+    if df.empty:
+        return [], []
+
+    # 3. Contagem (Count TAG)
+    # Removemos tags vazias para não contar lixo
+    df = df[df['tag'].notnull() & (df['tag'] != '')]
+
+    # Remove duplicatas de TAG se houver (para garantir contagem física real)
+    df = df.drop_duplicates(subset=['tag'])
+
+    contagem = df['empresa'].value_counts()
+
+    labels = contagem.index.tolist()
+    data = contagem.values.tolist()
+
+    return labels, data
+
+
+def get_idade_media_equipamentos_por_unidade(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Calcula a Idade Média dos equipamentos em Anos.
+    Fórmula: (Hoje - Data_Instalacao) / 365.25
+    """
+
+    # 1. Busca dados do modelo ConsultaEquipamentos
+    # Pegamos 'instalacao' e 'cadastro' (fallback)
+    queryset = ConsultaEquipamentos.objects.all().values('empresa', 'instalacao', 'cadastro', 'tag')
+
+    if empresa:
+        queryset = queryset.filter(empresa=empresa)
+
+    df = pd.DataFrame(list(queryset))
+
+    if df.empty:
+        return [], []
+
+    # 2. Unifica a Data de Referência (Prioridade: Instalação > Cadastro)
+    df['instalacao'] = pd.to_datetime(df['instalacao'], errors='coerce')
+    df['cadastro'] = pd.to_datetime(df['cadastro'], errors='coerce')
+
+    # Cria coluna 'data_ref' preenchendo instalacao nula com cadastro
+    df['data_ref'] = df['instalacao'].fillna(df['cadastro'])
+
+    # Remove quem não tem nenhuma data (não dá pra calcular idade)
+    df = df.dropna(subset=['data_ref'])
+
+    # 3. Filtro de Data (Opcional - Geralmente Idade Média é sobre o parque todo ATUAL)
+    # Se você quiser filtrar "equipamentos comprados entre data X e Y", descomente abaixo.
+    # Mas para "Idade do Parque", geralmente olhamos tudo.
+    # if data_inicio:
+    #     df = df[df['data_ref'] >= pd.to_datetime(data_inicio)]
+    # if data_fim:
+    #     fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+    #     df = df[df['data_ref'] <= fim]
+
+    if df.empty:
+        return [], []
+
+    # 4. Remove Duplicatas de TAG (para não distorcer a média)
+    df = df.drop_duplicates(subset=['tag'])
+
+    # 5. Cálculo da Idade
+    hoje = pd.Timestamp.now()
+    # Diferença em dias convertida para anos (365.25 considera bissextos)
+    df['idade_anos'] = (hoje - df['data_ref']).dt.days / 365.25
+
+    # Remove idades negativas (datas futuras erradas) ou absurdas (> 100 anos)
+    df = df[(df['idade_anos'] >= 0) & (df['idade_anos'] < 100)]
+
+    # 6. Agrupamento (Média por Empresa)
+    df_agrupado = df.groupby('empresa')['idade_anos'].mean().reset_index()
+
+    # Arredonda para 1 casa decimal (Ex: 3.5 anos)
+    df_agrupado['idade_anos'] = df_agrupado['idade_anos'].round(1)
+
+    # Ordena do mais velho para o mais novo
+    df_agrupado = df_agrupado.sort_values(by='idade_anos', ascending=False)
+
+    return df_agrupado['empresa'].tolist(), df_agrupado['idade_anos'].tolist()
+
+
+def get_idade_media_equipamentos_por_familia(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Calcula a Idade Média por FAMÍLIA.
+    Filtro de Data: Baseado em CADASTRO (conforme pedido).
+    Cálculo de Idade: (Hoje - COALESCE(Instalacao, Cadastro)) / 365.25
+    """
+
+    # 1. Busca dados
+    queryset = ConsultaEquipamentos.objects.all().values('familia', 'instalacao', 'cadastro', 'tag')
+
+    if empresa:
+        queryset = queryset.filter(empresa=empresa)
+
+    df = pd.DataFrame(list(queryset))
+
+    if df.empty:
+        return [], []
+
+    # 2. Tratamento de Datas
+    df['instalacao'] = pd.to_datetime(df['instalacao'], errors='coerce')
+    df['cadastro'] = pd.to_datetime(df['cadastro'], errors='coerce')
+
+    # FILTRO DE DATA (Aplica no CADASTRO conforme sua regra)
+    # if data_inicio:
+    #     df = df[df['cadastro'] >= pd.to_datetime(data_inicio)]
+    # if data_fim:
+    #     fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+    #     df = df[df['cadastro'] <= fim]
+
+    if df.empty:
+        return [], []
+
+    # 3. Define Data de Referência para o cálculo da idade
+    # Prioriza Instalação, se não tiver, usa Cadastro
+    df['data_ref'] = df['instalacao'].fillna(df['cadastro'])
+    df = df.dropna(subset=['data_ref', 'familia'])  # Remove sem data ou sem nome de família
+
+    # 4. Remove Duplicatas de TAG
+    df = df.drop_duplicates(subset=['tag'])
+
+    # 5. Cálculo da Idade
+    hoje = pd.Timestamp.now()
+    df['idade_anos'] = (hoje - df['data_ref']).dt.days / 365.25
+
+    # Limpeza de inconsistências
+    df = df[(df['idade_anos'] >= 0) & (df['idade_anos'] < 100)]
+
+    # 6. Agrupamento por FAMÍLIA
+    df_agrupado = df.groupby('familia')['idade_anos'].mean().reset_index()
+    df_agrupado['idade_anos'] = df_agrupado['idade_anos'].round(1)
+
+    # Ordena do mais velho para o mais novo
+    df_agrupado = df_agrupado.sort_values(by='idade_anos', ascending=False)
+
+    # 7. Limita aos TOP 20 (Para o gráfico não ficar gigante/ilegível)
+    # Se quiser todos, remova o .head(20)
+    df_agrupado = df_agrupado.head(20)
+
+    return df_agrupado['familia'].tolist(), df_agrupado['idade_anos'].tolist()
