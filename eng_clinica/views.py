@@ -14,7 +14,15 @@ from .services.graficos.graficos_dashboards import (
     get_taxa_disponibilidade_equipamentos,
     get_qtde_equipamentos_por_unidade,
     get_idade_media_equipamentos_por_unidade,
-    get_idade_media_equipamentos_por_familia
+    get_idade_media_equipamentos_por_familia,
+    get_maiores_tempos_reparo_criticos_por_familia,
+    get_principais_causas_corretivas,
+    get_maiores_tempos_parada_criticos_por_familia,
+    get_tempo_mediano_parada_criticos_por_unidade,
+    get_matriz_indisponibilidade_criticos,
+    get_taxa_disponibilidade_equipamentos_criticos,
+    get_qtde_equipamentos_criticos_por_unidade,
+    get_tempo_primeiro_atendimento_critico,
 )
 
 
@@ -76,6 +84,29 @@ def engenharia_clinica_graficos(request):
 
     labels_idade_media_equipamentos_familia = []
     data_idade_media_equipamentos_familia = []
+
+    labels_reparo_tempo_critico = []
+    data_reparo_tempo_critico = []
+
+    labels_principais_causas_corretivas = []
+    data_principais_causas_corretivas = []
+
+    labels_maiores_tempos_parada_criticos_por_familia = []
+    data_maiores_tempos_parada_criticos_por_familia = []
+
+    labels_tempo_mediano_parada_criticos_por_unidade = []
+    data_tempo_mediano_parada_criticos_por_unidade = []
+
+    pivot_indisponibilidade_equipamentos_criticos = {}
+
+    labels_taxa_disponibilidade_equipamentos_criticos = []
+    data_taxa_disponibilidade_equipamentos_criticos = []
+
+    labels_equipamentos_criticos_por_unidade = []
+    data_equipamentos_criticos_por_unidade = []
+
+    labels_primeiro_atendimento_equipamento_critico = []
+    data_primeiro_atendimento_equipamento_critico = []
 
     # 4. Lógica de Filtragem
     # Só executa a busca se tiver data_inicio e data_fim preenchidos
@@ -179,6 +210,62 @@ def engenharia_clinica_graficos(request):
             empresa=empresa
         )
 
+        # Chama o serviço do Gráfico de Maiores tempos de reparo de equipamentos criticos por familia (h)
+        labels_reparo_tempo_critico, data_reparo_tempo_critico = get_maiores_tempos_reparo_criticos_por_familia(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
+        # Chama o serviço do Gráfico de Principais causas corretivas
+        labels_principais_causas_corretivas, data_principais_causas_corretivas = get_principais_causas_corretivas(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
+        # Chama o serviço do Gráfico dos Maiores tempos de parada de Equipamentos criticos por familia
+        labels_maiores_tempos_parada_criticos_por_familia, data_maiores_tempos_parada_criticos_por_familia = get_maiores_tempos_parada_criticos_por_familia(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
+        # Chama o Serviço do Gráfico do Tempo mediano de parada de equipamentos criticos das unidades
+        labels_tempo_mediano_parada_criticos_por_unidade, data_tempo_mediano_parada_criticos_por_unidade = get_tempo_mediano_parada_criticos_por_unidade(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
+        # Chama o Serviço do Gráfico de Horarios que os equipamentos criticos ficaram indisponiveis
+        pivot_indisponibilidade_equipamentos_criticos = get_matriz_indisponibilidade_criticos(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
+        # Chama o Serviço do Gráfico Taxa de Disponibilidade Dos Equipamentos Críticos
+        labels_taxa_disponibilidade_equipamentos_criticos, data_taxa_disponibilidade_equipamentos_criticos = get_taxa_disponibilidade_equipamentos_criticos(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
+        # Chama o Serviço do Gráfico Quantidade de Equipamentos Criticos por Unidade
+        labels_equipamentos_criticos_por_unidade, data_equipamentos_criticos_por_unidade = get_qtde_equipamentos_criticos_por_unidade(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
+        # Chama o Serviço do Gráfico Tempo do Primeito Atendimento de Equipamento Critico
+        labels_primeiro_atendimento_equipamento_critico, data_primeiro_atendimento_equipamento_critico = get_tempo_primeiro_atendimento_critico(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            empresa=empresa
+        )
+
     # 5. Passa para o template (Se não entrou no if, vai tudo vazio)
     context = {
         'form': form,
@@ -231,6 +318,36 @@ def engenharia_clinica_graficos(request):
         'labels_idade_media_equipamentos_familia': labels_idade_media_equipamentos_familia,
         'data_idade_media_equipamentos_familia': data_idade_media_equipamentos_familia,
 
+        # Gráfico de Maiores tempos de reparo de equipamentos criticos por familia (h)
+        'labels_reparo_tempo_critico': labels_reparo_tempo_critico,
+        'data_reparo_tempo_critico': data_reparo_tempo_critico,
+
+        # Gráfico de Principais causas Corretivas
+        'labels_principais_causas_corretivas': labels_principais_causas_corretivas,
+        'data_principais_causas_corretivas': data_principais_causas_corretivas,
+
+        # Gráfico de Maiores Tempos de parada equipamentos criticos por familia
+        'labels_maiores_tempos_parada_criticos_por_familia': labels_maiores_tempos_parada_criticos_por_familia,
+        'data_maiores_tempos_parada_criticos_por_familia': data_maiores_tempos_parada_criticos_por_familia,
+
+        # Gráfico de Tempo Mediano de paradas de equipamentos criticos por unidade
+        'labels_tempo_mediano_parada_criticos_por_unidade': labels_tempo_mediano_parada_criticos_por_unidade,
+        'data_tempo_mediano_parada_criticos_por_unidade': data_tempo_mediano_parada_criticos_por_unidade,
+
+        # Gráfico de Horarios que os equipamentos criticos ficaram indisponiveis
+        'pivot_indisponibilidade_equipamentos_criticos': pivot_indisponibilidade_equipamentos_criticos,
+
+        # Gráfico Taxa de Disponibilidade Dos Equipamentos Críticos
+        'labels_taxa_disponibilidade_equipamentos_criticos': labels_taxa_disponibilidade_equipamentos_criticos,
+        'data_taxa_disponibilidade_equipamentos_criticos': data_taxa_disponibilidade_equipamentos_criticos,
+
+        # Gráfico Quantidade de Equipamentos Criticos Por Unidade
+        'labels_equipamentos_criticos_por_unidade': labels_equipamentos_criticos_por_unidade,
+        'data_equipamentos_criticos_por_unidade': data_equipamentos_criticos_por_unidade,
+
+        # Gráfico Tempo do Primeito Atendimento de Equipamento Critico
+        'labels_primeiro_atendimento_equipamento_critico': labels_primeiro_atendimento_equipamento_critico,
+        'data_primeiro_atendimento_equipamento_critico': data_primeiro_atendimento_equipamento_critico,
     }
     return render(request, 'engenharia/graficos.html', context)
 

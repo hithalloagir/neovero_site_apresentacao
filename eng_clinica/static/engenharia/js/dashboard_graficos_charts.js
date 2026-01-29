@@ -94,14 +94,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const data_disponibilidade_equipamentos = readJsonScript("data_disponibilidade_equipamentos");
 
     //--- 10. Taxa de Disponibilidade dos Equipamentos Críticos ---
+    const labels_taxa_disponibilidade_equipamentos_criticos = readJsonScript("labels_taxa_disponibilidade_equipamentos_criticos");
+    const data_taxa_disponibilidade_equipamentos_criticos = readJsonScript("data_taxa_disponibilidade_equipamentos_criticos");
 
     //--- 11. Quantidade de Equipamentos Cadastrados por Unidade ---
     const labels_equipamentos_unidade = readJsonScript("labels_equipamentos_unidade");
     const data_equipamentos_unidade = readJsonScript("data_equipamentos_unidade");
 
     //--- 12. Quantidade de Equipamentos Críticos por Unidade ---
-
+    const labels_equipamentos_criticos_por_unidade = readJsonScript("labels_equipamentos_criticos_por_unidade");
+    const data_equipamentos_criticos_por_unidade = readJsonScript("data_equipamentos_criticos_por_unidade");
+    
     //--- 13. Tempo 1 atendimento equip Critico (h) ---
+    const labels_primeiro_atendimento_equipamento_critico = readJsonScript("labels_primeiro_atendimento_equipamento_critico");
+    const data_primeiro_atendimento_equipamento_critico = readJsonScript("data_primeiro_atendimento_equipamento_critico");
 
     //--- 14. Idade dos Equipamentos por Unidade (anos) ---
     const labels_idade_equipamentos_unidade = readJsonScript("labels_idade_equipamentos_unidade");
@@ -111,7 +117,22 @@ document.addEventListener("DOMContentLoaded", () => {
     const labels_idade_media_equipamentos_familia = readJsonScript("labels_idade_media_equipamentos_familia");
     const data_idade_media_equipamentos_familia = readJsonScript("data_idade_media_equipamentos_familia");
 
-    
+    //--- 16. Maiores tempos Reparo equipamentos criticos
+    const labels_reparo_tempo_critico = readJsonScript("labels_reparo_tempo_critico");
+    const data_reparo_tempo_critico = readJsonScript("data_reparo_tempo_critico");
+
+    //--- 17. Principais Causas Corretivas
+    const labels_principais_causas_corretivas = readJsonScript("labels_principais_causas_corretivas");
+    const data_principais_causas_corretivas = readJsonScript("data_principais_causas_corretivas");
+
+    //--- 18. Maiores Tempos de parada equipamentos criticos por familia
+    const labels_maiores_tempos_parada_criticos_por_familia = readJsonScript("labels_maiores_tempos_parada_criticos_por_familia");
+    const data_maiores_tempos_parada_criticos_por_familia = readJsonScript("data_maiores_tempos_parada_criticos_por_familia");
+
+    //--- 19. Tempo Mediano de paradas de equipamentos criticos por unidade
+    const labels_tempo_mediano_parada_criticos_por_unidade = readJsonScript("labels_tempo_mediano_parada_criticos_por_unidade");
+    const data_tempo_mediano_parada_criticos_por_unidade = readJsonScript("data_tempo_mediano_parada_criticos_por_unidade");
+
 
     // Elementos do DOM
     const elAtendimentoMedio = document.getElementById("chartAtendimentoMedio");
@@ -126,9 +147,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const elchartQTDEquipamentosUnidade = document.getElementById("chartQTDEquipamentosUnidade");
     const elchartIdadeMediaEquipamentosUnidade = document.getElementById("chartIdadeMediaEquipamentosUnidade");
     const elchartIdadeFamiliaEquipamentos = document.getElementById("chartIdadeFamiliaEquipamentos");
+    const elchartReparoCritico = document.getElementById("chartReparoCritico");
+    const elchartCausasCorretivas = document.getElementById("chartCausasCorretivas");
+    const elchartParadaCritica = document.getElementById("chartParadaCritica");
+    const elchartMedianaParadaEquipamentosCriticosUnidade = document.getElementById("chartMedianaParadaEquipamentosCriticosUnidade");
+    const elrowDisponibilidadeEquipamentosCriticos = document.getElementById("rowDisponibilidadeEquipamentosCriticos");
+    const elchartEquipCriticosPorUnidade = document.getElementById("chartEquipCriticosPorUnidade");
+    const elchartPrimeiroAtendimentoEquipCritico = document.getElementById("chartPrimeiroAtendimentoEquipCritico");
+    
 
 
- 
     // -------------------------------------------------------
     // 1) Tempo Médio de Atendimento por Unidade (h)
     // -------------------------------------------------------
@@ -547,6 +575,56 @@ document.addEventListener("DOMContentLoaded", () => {
     // -------------------------------------------------------
     // 10) Taxa de Disponibilidade dos Equipamentos Críticos
     // -------------------------------------------------------
+    elrowDisponibilidadeEquipamentosCriticos.innerHTML = ""; // Limpa container
+    labels_taxa_disponibilidade_equipamentos_criticos.forEach((hospital, index) => {
+        const valor = data_taxa_disponibilidade_equipamentos_criticos[index];
+        const resto = (100 - valor).toFixed(2);
+        
+        // Define cor baseada na meta (Críticos exigem meta alta)
+        let color = "#198754"; // Verde
+        if (valor < 98) color = "#ffc107"; // Amarelo se < 98%
+        if (valor < 95) color = "#dc3545"; // Vermelho se < 95%
+
+        // Cria Elemento HTML do Card
+        const colDiv = document.createElement("div");
+        colDiv.className = "col-12 col-md-6 col-lg-3"; 
+        
+        colDiv.innerHTML = `
+            <div class="card border-0 shadow-sm rounded-4 h-100" style="border-top: 4px solid ${color} !important;">
+                <div class="card-body p-3 text-center">
+                    <h6 class="text-muted fw-bold mb-0">${hospital}</h6>
+                    <div style="height: 150px; position: relative;">
+                        <canvas id="gauge_crit_${index}"></canvas>
+                        <div style="position: absolute; top: 60%; left: 0; right: 0; text-align: center;">
+                            <span class="h4 fw-bold" style="color: ${color}">${valor}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        elrowDisponibilidadeEquipamentosCriticos.appendChild(colDiv);
+
+        // Renderiza o Gráfico Doughnut (Meia Lua)
+        new Chart(document.getElementById(`gauge_crit_${index}`), {
+            type: 'doughnut',
+            data: {
+                labels: ["Disponível", "Indisponível"],
+                datasets: [{
+                    data: [valor, resto],
+                    backgroundColor: [color, "#e9ecef"],
+                    borderWidth: 0,
+                    cutout: "75%",
+                    circumference: 180,
+                    rotation: 270,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: false } }
+            }
+        });
+    });
 
     // -------------------------------------------------------
     // 11) Quantidade de Equipamentos Cadastrados por Unidade
@@ -587,11 +665,81 @@ document.addEventListener("DOMContentLoaded", () => {
     // -------------------------------------------------------
     // 12) Quantidade de Equipamentos Críticos por Unidade
     // -------------------------------------------------------
-
+    new Chart(elchartEquipCriticosPorUnidade, {
+        type: "doughnut",
+        data: {
+            labels: labels_equipamentos_criticos_por_unidade,
+            datasets: [{
+                label: "Qtd Equipamentos",
+                data: data_equipamentos_criticos_por_unidade,
+                backgroundColor: [
+                    "#dc3545", // Vermelho (Crítico)
+                    "#fd7e14", 
+                    "#ffc107", 
+                    "#20c997",
+                    "#0d6efd"
+                ],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            ...baseOptions(),
+            plugins: {
+                legend: { position: 'right' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.raw;
+                            const total = context.chart._metasets[context.datasetIndex].total;
+                            const percentage = ((value / total) * 100).toFixed(1) + "%";
+                            return `${context.label}: ${value} (${percentage})`;
+                        }
+                    }
+                }
+            }
+        }
+    });
     // -------------------------------------------------------
     // 13) Tempo 1 atendimento equip Critico (h)
     // -------------------------------------------------------
-
+    new Chart(elchartPrimeiroAtendimentoEquipCritico, {
+        type: "bar",
+        data: {
+            labels: labels_primeiro_atendimento_equipamento_critico,
+            datasets: [{
+                label: "Tempo de Atendimento (h)",
+                data: data_primeiro_atendimento_equipamento_critico,
+                backgroundColor: "#fd7e14", // Laranja (Urgência/Resposta)
+                borderRadius: 4,
+                barPercentage: 0.6,
+            }]
+        },
+        options: {
+            ...baseOptions(),
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 11 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: "#f3f4f6" },
+                    title: { display: true, text: 'Horas' }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.raw} horas`;
+                        }
+                    }
+                }
+            }
+        }
+    });
     // -------------------------------------------------------
     // 14) Idade dos Equipamentos por Unidade (anos)
     // -------------------------------------------------------
@@ -682,4 +830,215 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }   
     });
+
+    // -------------------------------------------------------
+    // 16) Maiores tempos Reparo equipamentos criticos
+    // -------------------------------------------------------
+    new Chart(elchartReparoCritico, {
+        type: "bar",
+        data: {
+            labels: labels_reparo_tempo_critico,
+            datasets: [{
+                label: "Tempo Médio de Reparo (h)",
+                data: data_reparo_tempo_critico,
+                backgroundColor: "#dc3545", // Vermelho (Danger)
+                borderRadius: 4,
+                barPercentage: 0.6,
+            }]
+        },
+        options: {
+            ...baseOptions(),
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { 
+                        font: { size: 10 },
+                        autoSkip: false,
+                        maxRotation: 45,
+                        minRotation: 0
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: "#f3f4f6" },
+                    title: { display: true, text: 'Horas' }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.raw} horas`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // -------------------------------------------------------
+    // 17) Principais Causas Corretivas
+    // -------------------------------------------------------
+    new Chart(elchartCausasCorretivas, {
+        type: "bar",
+        data: {
+            labels: labels_principais_causas_corretivas,
+            datasets: [{
+                label: "Qtd de Ocorrências",
+                data: data_principais_causas_corretivas,
+                backgroundColor: "#fd7e14", // Laranja (Atenção)
+                borderRadius: 4,
+                barPercentage: 0.6,
+            }]
+        },
+        options: {
+            ...baseOptions(),
+            indexAxis: 'y', // <--- DICA: Mude para 'y' (Horizontal) se os nomes forem longos (ex: "Desgaste Natural")
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 10 } }
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { 
+                        font: { size: 10, weight: 'bold' },
+                        autoSkip: false
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.raw} ocorrências`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // -------------------------------------------------------
+    // 18) Maiores Tempos de parada equipamentos criticos por familia
+    // -------------------------------------------------------
+    new Chart(elchartParadaCritica, {
+        type: "bar",
+        data: {
+            labels: labels_maiores_tempos_parada_criticos_por_familia,
+            datasets: [{
+                label: "Tempo Médio de Parada (h)",
+                data: data_maiores_tempos_parada_criticos_por_familia,
+                backgroundColor: "#842029", // Vermelho Escuro (Sangue/Crítico)
+                borderRadius: 4,
+                barPercentage: 0.6,
+            }]
+        },
+        options: {
+            ...baseOptions(),
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { 
+                        font: { size: 10 },
+                        autoSkip: false,
+                        maxRotation: 45,
+                        minRotation: 0
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: "#f3f4f6" },
+                    title: { display: true, text: 'Horas Parado' }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.raw} horas`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // -------------------------------------------------------
+    // 19) Tempo Mediano de paradas de equipamentos criticos por unidade
+    // -------------------------------------------------------
+    new Chart(elchartMedianaParadaEquipamentosCriticosUnidade, {
+        type: "bar",
+        data: {
+            labels: labels_tempo_mediano_parada_criticos_por_unidade,
+            datasets: [{
+                label: "Mediana de Parada (h)",
+                data: data_tempo_mediano_parada_criticos_por_unidade,
+                backgroundColor: "#6610f2", // Roxo (Destaque diferente)
+                borderRadius: 4,
+                barPercentage: 0.6,
+            }]
+        },
+        options: {
+            ...baseOptions(),
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 11 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: "#f3f4f6" },
+                    title: { display: true, text: 'Horas (Mediana)' }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.raw} horas (mediana)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // -------------------------------------------------------
+    // 20) Horarios que os equipamentos criticos ficaram indisponiveis
+    // -------------------------------------------------------
+    const cells = document.querySelectorAll('.heatmap-cell');
+    
+    if (cells.length > 0) {
+        // Encontrar o valor máximo para fazer a escala
+        let maxVal = 0;
+        cells.forEach(c => {
+            const val = parseInt(c.getAttribute('data-value')) || 0;
+            if (val > maxVal) maxVal = val;
+        });
+
+        // Aplicar cores
+        cells.forEach(c => {
+            const val = parseInt(c.getAttribute('data-value')) || 0;
+            if (val > 0) {
+                // Calcula a intensidade (0 a 1)
+                // Se maxVal for baixo (ex: 2), evita divisão ruim
+                const intensity = maxVal > 0 ? (val / maxVal) : 0;
+                
+                // Define a cor de fundo (Laranja -> Vermelho)
+                // Use rgba para transparência baseada na intensidade
+                // Cor Base: 220, 53, 69 (Danger/Vermelho)
+                // Vamos usar opacidade variável
+                const alpha = 0.1 + (intensity * 0.9); // Mínimo 10% cor
+                c.style.backgroundColor = `rgba(220, 53, 69, ${alpha})`;
+                
+                // Se for muito escuro, texto branco
+                if (alpha > 0.6) c.style.color = '#fff';
+            }
+        });
+    }
 });

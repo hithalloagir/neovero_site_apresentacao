@@ -183,7 +183,7 @@ def get_taxa_cumprimento_por_unidade(data_inicio=None, data_fim=None, empresa=No
     df = pd.DataFrame(list(queryset))
 
     if df.empty:
-        return [], []
+        return [], [], [], []
 
     df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
     df.dropna(subset=['abertura'], inplace=True)
@@ -195,7 +195,7 @@ def get_taxa_cumprimento_por_unidade(data_inicio=None, data_fim=None, empresa=No
         df = df[df['abertura'] <= fim]
 
     if df.empty:
-        return [], []
+        return [], [], [], []
 
     df['is_fechada'] = df['situacao'].astype(str).str.lower() == 'fechada'
     df['is_fechada'] = df['is_fechada'].astype(int)
@@ -677,3 +677,612 @@ def get_idade_media_equipamentos_por_familia(data_inicio=None, data_fim=None, em
     df_agrupado = df_agrupado.head(20)
 
     return df_agrupado['familia'].tolist(), df_agrupado['idade_anos'].tolist()
+
+
+def get_maiores_tempos_reparo_criticos_por_familia(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Retorna os Maiores Tempos de Reparo (Média em Horas) por Família.
+    BLINDADO CONTRA DUPLICATAS DE OS E DE EQUIPAMENTO.
+    """
+
+    # 1. Busca as OS (Fatos)
+    qs_os = ConsultaOs.objects.filter(
+        tipomanutencao__iexact='CORRETIVA',
+        prioridade__icontains='ALTA',
+        situacao__iexact='Fechada',
+        fechamento__isnull=False,
+        abertura__isnull=False,
+        tag__isnull=False
+    ).exclude(tag='').values('tag', 'abertura', 'fechamento', 'os', 'local_api', 'empresa')
+
+    if empresa:
+        qs_os = qs_os.filter(empresa=empresa)
+
+    df_os = pd.DataFrame(list(qs_os))
+
+    if df_os.empty:
+        return [], []
+
+    # Tratamento de Datas e Filtro
+    df_os['abertura'] = pd.to_datetime(df_os['abertura'], errors='coerce')
+    df_os['fechamento'] = pd.to_datetime(df_os['fechamento'], errors='coerce')
+
+    if data_inicio:
+        df_os = df_os[df_os['abertura'] >= pd.to_datetime(data_inicio)]
+    if data_fim:
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df_os = df_os[df_os['abertura'] <= fim]
+
+    if df_os.empty:
+        return [], []
+
+    # === BLINDAGEM 1: Remove duplicatas de OS ===
+    # Garante que cada OS só conte 1 vez
+    df_os = df_os.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    # Cálculo do Tempo
+    df_os['horas_reparo'] = (df_os['fechamento'] - df_os['abertura']).dt.total_seconds() / 3600
+    df_os = df_os[df_os['horas_reparo'] > 0]  # Remove negativos
+
+    # 2. Busca as Famílias (Dimensão)
+    tags_envolvidas = df_os['tag'].unique().tolist()
+
+    qs_equip = ConsultaEquipamentos.objects.filter(
+        tag__in=tags_envolvidas
+    ).values('tag', 'familia')
+
+    df_equip = pd.DataFrame(list(qs_equip))
+
+    if df_equip.empty:
+        return [], []
+
+    # === BLINDAGEM 2: Remove duplicatas de EQUIPAMENTO ===
+    # Se a mesma TAG tiver 2 linhas no cadastro, mantemos apenas a primeira encontrada
+    # Isso evita o "efeito multiplicador" no Join
+    df_equip = df_equip.drop_duplicates(subset=['tag'])
+
+    # 3. Cruzamento
+    df_final = pd.merge(df_os, df_equip, on='tag', how='inner')
+
+    if df_final.empty:
+        return [], []
+
+    # 4. Agrupamento
+    df_agrupado = df_final.groupby('familia')['horas_reparo'].mean().reset_index()
+
+    df_agrupado['horas_reparo'] = df_agrupado['horas_reparo'].round(1)
+    df_agrupado = df_agrupado.sort_values(by='horas_reparo', ascending=False)
+
+    df_agrupado = df_agrupado.head(20)
+
+    return df_agrupado['familia'].tolist(), df_agrupado['horas_reparo'].tolist()
+
+
+def get_principais_causas_corretivas(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Retorna as Principais Causas de Manutenção Corretiva (Top 10 ou 20).
+    Métrica: Contagem de OS (Quantas vezes essa causa ocorreu).
+    Filtro: Tipo Manutenção = CORRETIVA.
+    """
+
+    # 1. Busca Dados (Filtro CORRETIVA e Fechada/Aberta - geralmente olhamos o histórico todo, mas o padrão é fechada para ter diagnóstico final)
+    # DICA: Se a causa for preenchida na abertura, pode pegar abertas também.
+    # Vou assumir 'Fechada' para garantir que a causa foi confirmada pelo técnico.
+    queryset = ConsultaOs.objects.filter(
+        tipomanutencao__iexact='CORRETIVA',
+        causa__isnull=False
+    ).exclude(causa='').values('causa', 'os', 'tag', 'local_api', 'abertura', 'empresa')
+
+    if empresa:
+        queryset = queryset.filter(empresa=empresa)
+
+    df = pd.DataFrame(list(queryset))
+
+    if df.empty:
+        return [], []
+
+    # 2. Tratamento de Datas e Filtro
+    df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+
+    if data_inicio:
+        df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+    if data_fim:
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        return [], []
+
+    # 3. BLINDAGEM: Remove Duplicatas de OS
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    # 4. Agrupamento e Contagem
+    # Conta quantas vezes cada causa aparece
+    contagem = df['causa'].value_counts().reset_index()
+    contagem.columns = ['causa', 'qtd']
+
+    # 5. Ordenação e Limite
+    # O value_counts já ordena do maior para o menor.
+    # Pegamos o Top 10 para o gráfico não ficar polúido
+    contagem = contagem.head(10)
+
+    return contagem['causa'].tolist(), contagem['qtd'].tolist()
+
+
+def get_maiores_tempos_parada_criticos_por_familia(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Retorna os Maiores Tempos de Parada (Downtime Médio em Horas) por Família.
+    Fórmula: (Funcionamento - Parada).
+    Filtros: Corretiva, Crítica, Família válida.
+    """
+
+    # 1. Busca as OS (Fatos) com campos de PARADA e FUNCIONAMENTO
+    qs_os = ConsultaOs.objects.filter(
+        tipomanutencao__iexact='CORRETIVA',
+        prioridade__icontains='ALTA',
+        # Garante que tem as datas de parada preenchidas
+        parada__isnull=False,
+        funcionamento__isnull=False,
+        tag__isnull=False
+    ).exclude(tag='').values('tag', 'parada', 'funcionamento', 'os', 'local_api', 'empresa', 'abertura')
+
+    if empresa:
+        qs_os = qs_os.filter(empresa=empresa)
+
+    df_os = pd.DataFrame(list(qs_os))
+
+    if df_os.empty:
+        return [], []
+
+    # 2. Tratamento de Datas (Parada e Funcionamento)
+    # Abertura usada apenas para filtro de período
+    df_os['abertura'] = pd.to_datetime(df_os['abertura'], errors='coerce')
+    df_os['parada'] = pd.to_datetime(df_os['parada'], errors='coerce')
+    df_os['funcionamento'] = pd.to_datetime(df_os['funcionamento'], errors='coerce')
+
+    # Remove datas inválidas
+    df_os = df_os.dropna(subset=['parada', 'funcionamento'])
+
+    # Filtro de Período (Baseado na ABERTURA da OS)
+    if data_inicio:
+        df_os = df_os[df_os['abertura'] >= pd.to_datetime(data_inicio)]
+    if data_fim:
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df_os = df_os[df_os['abertura'] <= fim]
+
+    if df_os.empty:
+        return [], []
+
+    # 3. BLINDAGEM: Remove duplicatas de OS
+    df_os = df_os.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    # 4. Cálculo do Tempo de Parada (Horas)
+    df_os['horas_parada'] = (df_os['funcionamento'] - df_os['parada']).dt.total_seconds() / 3600
+
+    # Remove tempos negativos ou zerados (erros de digitação)
+    df_os = df_os[df_os['horas_parada'] > 0]
+
+    # 5. Busca as Famílias (Dimensão)
+    tags_envolvidas = df_os['tag'].unique().tolist()
+
+    qs_equip = ConsultaEquipamentos.objects.filter(
+        tag__in=tags_envolvidas
+    ).values('tag', 'familia')
+
+    df_equip = pd.DataFrame(list(qs_equip))
+
+    if df_equip.empty:
+        return [], []
+
+    # Remove duplicatas de EQUIPAMENTO
+    df_equip = df_equip.drop_duplicates(subset=['tag'])
+
+    # 6. Cruzamento e Filtro de Família
+    df_final = pd.merge(df_os, df_equip, on='tag', how='inner')
+
+    # Filtra Família #N/A ou Vazia
+    df_final = df_final[
+        (df_final['familia'].notnull()) &
+        (df_final['familia'] != '') &
+        (df_final['familia'] != '#N/A')
+    ]
+
+    if df_final.empty:
+        return [], []
+
+    # 7. Agrupamento (Média)
+    df_agrupado = df_final.groupby('familia')['horas_parada'].mean().reset_index()
+
+    df_agrupado['horas_parada'] = df_agrupado['horas_parada'].round(1)
+    df_agrupado = df_agrupado.sort_values(by='horas_parada', ascending=False)
+
+    # Top 20
+    df_agrupado = df_agrupado.head(20)
+
+    return df_agrupado['familia'].tolist(), df_agrupado['horas_parada'].tolist()
+
+
+def get_tempo_mediano_parada_criticos_por_unidade(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Retorna a MEDIANA do Tempo de Parada (Downtime) por Unidade.
+    Filtros: Corretiva, Crítica, Data de Fechamento.
+    """
+
+    # 1. Busca as OS (Fatos) com campos de PARADA e FUNCIONAMENTO
+    queryset = ConsultaOs.objects.filter(
+        tipomanutencao__iexact='CORRETIVA',
+        prioridade__icontains='ALTA',
+        # Garante que tem as datas necessárias
+        parada__isnull=False,
+        funcionamento__isnull=False,
+        fechamento__isnull=False  # Filtro de data será aqui
+    ).values('empresa', 'parada', 'funcionamento', 'fechamento', 'os', 'tag', 'local_api')
+
+    if empresa:
+        queryset = queryset.filter(empresa=empresa)
+
+    df = pd.DataFrame(list(queryset))
+
+    if df.empty:
+        return [], []
+
+    # 2. Tratamento de Datas
+    df['fechamento'] = pd.to_datetime(df['fechamento'], errors='coerce')
+    df['parada'] = pd.to_datetime(df['parada'], errors='coerce')
+    df['funcionamento'] = pd.to_datetime(df['funcionamento'], errors='coerce')
+
+    # Remove datas inválidas
+    df = df.dropna(subset=['parada', 'funcionamento', 'fechamento'])
+
+    # 3. Filtro de Período (Baseado no FECHAMENTO conforme pedido)
+    if data_inicio:
+        df = df[df['fechamento'] >= pd.to_datetime(data_inicio)]
+    if data_fim:
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df = df[df['fechamento'] <= fim]
+
+    if df.empty:
+        return [], []
+
+    # 4. BLINDAGEM: Remove duplicatas de OS
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    # 5. Cálculo do Tempo de Parada (Horas)
+    df['horas_parada'] = (df['funcionamento'] - df['parada']).dt.total_seconds() / 3600
+
+    # Remove tempos negativos ou zerados
+    df = df[df['horas_parada'] > 0]
+
+    if df.empty:
+        return [], []
+
+    # 6. Agrupamento (MEDIANA por Empresa)
+    # Usamos median() em vez de mean()
+    df_agrupado = df.groupby('empresa')['horas_parada'].median().reset_index()
+
+    df_agrupado['horas_parada'] = df_agrupado['horas_parada'].round(1)
+    df_agrupado = df_agrupado.sort_values(by='horas_parada', ascending=False)
+
+    return df_agrupado['empresa'].tolist(), df_agrupado['horas_parada'].tolist()
+
+
+def get_matriz_indisponibilidade_criticos(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Retorna matriz para Heatmap.
+    CORREÇÃO: Retorna lista de valores ordenada para facilitar o loop no HTML.
+    """
+
+    # 1. Busca os dados
+    queryset = ConsultaOs.objects.filter(
+        prioridade__icontains='ALTA',
+        abertura__isnull=False
+    ).values('os', 'tag', 'local_api', 'abertura', 'empresa')
+
+    if empresa:
+        queryset = queryset.filter(empresa=empresa)
+
+    df = pd.DataFrame(list(queryset))
+
+    # Estrutura vazia padrão
+    dias_ordenados = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+
+    if df.empty:
+        # Retorna estrutura vazia para não quebrar o HTML
+        matriz_vazia = []
+        for h in range(24):
+            matriz_vazia.append({
+                'hora': f"{h:02d}:00",
+                'valores': [0] * 7  # Lista com 7 zeros
+            })
+        return {'dias': dias_ordenados, 'matriz': matriz_vazia}
+
+    # 2. Tratamento
+    df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+    df.dropna(subset=['abertura'], inplace=True)
+
+    if data_inicio:
+        df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+    if data_fim:
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        # Repete a lógica de retorno vazio se filtrar tudo
+        matriz_vazia = []
+        for h in range(24):
+            matriz_vazia.append({'hora': f"{h:02d}:00", 'valores': [0] * 7})
+        return {'dias': dias_ordenados, 'matriz': matriz_vazia}
+
+    # 3. MenosDuplicadas
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    # 4. Pivot
+    df['hora'] = df['abertura'].dt.hour
+    df['dia_semana_int'] = df['abertura'].dt.dayofweek  # 0=Seg ... 6=Dom
+
+    df_pivot = df.groupby(['hora', 'dia_semana_int']).size().reset_index(name='qtd')
+
+    # 5. Montagem da Matriz (Com LISTA de valores)
+    matriz = []
+
+    for h in range(24):
+        linha_valores = []  # Essa lista vai guardar [ValorSeg, ValorTer, ValorQua...]
+
+        for d_int in range(7):
+            # Tenta achar o valor no dataframe agrupado
+            filtro = df_pivot[
+                (df_pivot['hora'] == h) &
+                (df_pivot['dia_semana_int'] == d_int)
+            ]
+
+            valor = 0
+            if not filtro.empty:
+                valor = int(filtro['qtd'].values[0])  # Pega o valor real
+
+            linha_valores.append(valor)
+
+        # Adiciona o objeto final da hora
+        matriz.append({
+            'hora': f"{h:02d}:00",
+            'valores': linha_valores  # <--- AQUI ESTÁ A CORREÇÃO
+        })
+
+    return {
+        'dias': dias_ordenados,
+        'matriz': matriz
+    }
+
+
+def get_taxa_disponibilidade_equipamentos_criticos(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Calcula a Disponibilidade (%) APENAS para Equipamentos Críticos (Prioridade = ALTA).
+    Fórmula: ( (24h * Dias * Qtd_Equip_Criticos) - SUM(TempoParaResolver) ) / (24h * Dias * Qtd_Equip_Criticos)
+    TempoParaResolver = Fechamento - Abertura.
+    """
+
+    # === 1. DEFINIR O UNIVERSO DE EQUIPAMENTOS CRÍTICOS (Inventário) ===
+    # Contamos quantas TAGs únicas já tiveram OS com prioridade ALTA na história (ou no período).
+    # Assumimos que se o equipamento tem OS Crítica, ele é um Equipamento Crítico.
+    qs_inventario = ConsultaOs.objects.filter(
+        prioridade__icontains='ALTA',  # Filtro de Criticidade
+        tag__isnull=False
+    ).exclude(tag='').values('empresa', 'tag')
+
+    if empresa:
+        qs_inventario = qs_inventario.filter(empresa=empresa)
+
+    df_inv = pd.DataFrame(list(qs_inventario))
+
+    if df_inv.empty:
+        return [], []
+
+    # Conta equipamentos únicos por empresa (Inventário Crítico)
+    # Ex: {'HUGOL': 50, 'CRER': 20}
+    inventario_por_empresa = df_inv.groupby('empresa')['tag'].nunique().to_dict()
+
+    # === 2. DEFINIR O PERÍODO (Dias) ===
+    if data_inicio and data_fim:
+        dt_ini = pd.to_datetime(data_inicio)
+        dt_fim = pd.to_datetime(data_fim)
+        # Força final do dia para garantir o cálculo correto de dias
+        dt_fim_filter = dt_fim.replace(hour=23, minute=59, second=59)
+        dias_periodo = (dt_fim - dt_ini).days + 1
+    else:
+        dias_periodo = 30
+        dt_ini = None
+        dt_fim_filter = None
+
+    # === 3. CALCULAR TEMPO PARA RESOLVER (Downtime) ===
+    # Busca OSs Críticas Fechadas no período
+    qs_os = ConsultaOs.objects.filter(
+        prioridade__icontains='ALTA',
+        situacao__iexact='Fechada',
+        abertura__isnull=False,
+        fechamento__isnull=False
+    ).values('empresa', 'os', 'tag', 'local_api', 'abertura', 'fechamento')
+
+    if empresa:
+        qs_os = qs_os.filter(empresa=empresa)
+
+    df_os = pd.DataFrame(list(qs_os))
+    downtime_por_empresa = {}
+
+    if not df_os.empty:
+        # Tratamento de Datas
+        df_os['abertura'] = pd.to_datetime(df_os['abertura'], errors='coerce')
+        df_os['fechamento'] = pd.to_datetime(df_os['fechamento'], errors='coerce')
+
+        # Filtro de Data Range (Baseado na ABERTURA conforme pedido)
+        if dt_ini:
+            df_os = df_os[df_os['abertura'] >= dt_ini]
+        if dt_fim_filter:
+            df_os = df_os[df_os['abertura'] <= dt_fim_filter]
+
+        # === BLINDAGEM: MENOS DUPLICADAS ===
+        df_os = df_os.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+        # Cálculo do Tempo (Horas)
+        df_os['tempo_resolver'] = (df_os['fechamento'] - df_os['abertura']).dt.total_seconds() / 3600
+
+        # Remove inconsistências (tempos negativos)
+        df_os = df_os[df_os['tempo_resolver'] > 0]
+
+        # Soma do tempo parado por empresa
+        downtime_por_empresa = df_os.groupby('empresa')['tempo_resolver'].sum().to_dict()
+
+    # === 4. CÁLCULO FINAL DA TAXA ===
+    labels = []
+    valores = []
+
+    # Itera sobre as empresas que têm inventário crítico
+    for nome_empresa, qtd_equipamentos in inventario_por_empresa.items():
+
+        # A. Total de Horas Possíveis (24h * Dias * Qtd Equipamentos)
+        horas_potenciais = 24 * dias_periodo * qtd_equipamentos
+
+        # B. Total de Horas Parado (Downtime)
+        horas_parado = downtime_por_empresa.get(nome_empresa, 0)
+
+        # C. Fórmula
+        if horas_potenciais > 0:
+            taxa = (horas_potenciais - horas_parado) / horas_potenciais
+            taxa = taxa * 100  # Porcentagem
+        else:
+            taxa = 0
+
+        labels.append(nome_empresa)
+        valores.append(round(taxa, 2))
+
+    return labels, valores
+
+
+def get_qtde_equipamentos_criticos_por_unidade(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Retorna a quantidade de Equipamentos Críticos cuja GARANTIA vence no período.
+    Lógica:
+      1. Identifica Tags Críticas (OS com Prioridade ALTA).
+      2. Busca essas Tags na tabela de Equipamentos.
+      3. Filtra pela Data de instalacao.
+    """
+
+    # 1. Identificar Tags Críticas (Subquery na ConsultaOs)
+    # Consideramos "Crítico" qualquer equipamento que tenha tido pelo menos uma OS de Prioridade Alta
+    tags_criticas = ConsultaOs.objects.filter(
+        prioridade__icontains='ALTA',
+        tag__isnull=False
+    ).exclude(tag='').values_list('tag', flat=True).distinct()
+
+    # 2. Busca na Tabela de Equipamentos (Usando as tags críticas)
+    queryset = ConsultaEquipamentos.objects.filter(
+        tag__in=tags_criticas,
+        tag__isnull=False
+    ).exclude(tag='').values('empresa', 'tag', 'instalacao')
+
+    if empresa:
+        queryset = queryset.filter(empresa=empresa)
+
+    df = pd.DataFrame(list(queryset))
+
+    if df.empty:
+        return [], []
+
+    # 3. Tratamento de Data (Filtro: instalacao)
+    df['instalacao'] = pd.to_datetime(df['instalacao'], errors='coerce')
+
+    # Remove equipamentos sem data de instalacao válida (se o filtro de data for obrigatório)
+    if data_inicio or data_fim:
+        df.dropna(subset=['instalacao'], inplace=True)
+
+    if data_inicio:
+        df = df[df['instalacao'] >= pd.to_datetime(data_inicio)]
+    if data_fim:
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df = df[df['instalacao'] <= fim]
+
+    if df.empty:
+        return [], []
+
+    # 4. Contagem Única (MenosDuplicadas)
+    # Se houver duplicidade de cadastro do mesmo equipamento, o nunique resolve
+    df_agrupado = df.groupby('empresa')['tag'].nunique().reset_index()
+    df_agrupado.columns = ['empresa', 'qtd']
+
+    # 5. Ordenação
+    df_agrupado = df_agrupado.sort_values(by='qtd', ascending=False)
+
+    return df_agrupado['empresa'].tolist(), df_agrupado['qtd'].tolist()
+
+
+def get_tempo_primeiro_atendimento_critico(data_inicio=None, data_fim=None, empresa=None):
+    """
+    Retorna o Tempo Médio para 1º Atendimento (h) de Equipamentos Críticos.
+    Fórmula: Data Atendimento - Abertura.
+    Filtros: 
+      - Corretiva
+      - Prioridade Alta
+      - Consistência (Atendimento >= Parada)
+    """
+
+    # 1. Busca os dados (Filtro: Corretiva e Prioridade Alta)
+    queryset = ConsultaOs.objects.filter(
+        tipomanutencao__iexact='CORRETIVA',
+        prioridade__icontains='ALTA',
+        abertura__isnull=False,
+        data_atendimento__isnull=False
+    ).values('os', 'tag', 'local_api', 'empresa', 'abertura', 'data_atendimento', 'parada')
+
+    if empresa:
+        queryset = queryset.filter(empresa=empresa)
+
+    df = pd.DataFrame(list(queryset))
+
+    if df.empty:
+        return [], []
+
+    # 2. Tratamento de Datas
+    cols_data = ['abertura', 'data_atendimento', 'parada']
+    for col in cols_data:
+        df[col] = pd.to_datetime(df[col], errors='coerce')
+
+    # Remove datas essenciais inválidas
+    df.dropna(subset=['abertura', 'data_atendimento'], inplace=True)
+
+    # 3. Filtro de Período (Baseado na ABERTURA)
+    if data_inicio:
+        df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+    if data_fim:
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        return [], []
+
+    # 4. BLINDAGEM: Menos Duplicadas
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    # 5. FILTRO: MenosImediatas (Atendimento deve ser >= Parada)
+    # Se a 'parada' estiver preenchida, verificamos a consistência.
+    # Se 'parada' for NaT (nula), assumimos que está OK ou filtramos fora dependendo da regra.
+    # Assumirei: Se tem parada, atendimento deve ser posterior. Se não tem parada, segue o jogo.
+
+    # Cria uma máscara: Se Parada existe, DataAtendimento >= Parada. Se Parada é NaT, True.
+    mask_valid_time = (df['parada'].isnull()) | (df['data_atendimento'] >= df['parada'])
+    df = df[mask_valid_time]
+
+    # Filtro extra de sanidade: Atendimento >= Abertura
+    df = df[df['data_atendimento'] >= df['abertura']]
+
+    if df.empty:
+        return [], []
+
+    # 6. Cálculo da Métrica (Horas)
+    df['tempo_atendimento_h'] = (df['data_atendimento'] - df['abertura']).dt.total_seconds() / 3600
+
+    # 7. Agrupamento (Média por Empresa)
+    df_agrupado = df.groupby('empresa')['tempo_atendimento_h'].mean().reset_index()
+
+    # Arredonda e Ordena
+    df_agrupado['tempo_atendimento_h'] = df_agrupado['tempo_atendimento_h'].round(2)
+    df_agrupado = df_agrupado.sort_values(by='tempo_atendimento_h', ascending=False)
+
+    return df_agrupado['empresa'].tolist(), df_agrupado['tempo_atendimento_h'].tolist()

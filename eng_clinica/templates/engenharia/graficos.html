@@ -196,12 +196,19 @@
                         <p class="text-uppercase text-muted fw-bold small mb-1">Taxa de Disponibilidade Geral dos Equipamentos</p>
                     </div>
                 </div>
-
-                {% comment %} <div style="height: 250px; position: relative;">
-                    <canvas id="chartTaxaDisponibilidadeEquipamentos"></canvas>
-                </div> {% endcomment %}
                 <div class="row g-4 mb-4" id="chartTaxaDisponibilidadeEquipamentos">
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <h5 class="text-uppercase fw-bold small mb-3 text-danger">
+                    Taxa de Disponibilidade dos Equipamentos <span class="badge bg-danger">CRÍTICOS</span>
+                </h5>
+                <div class="row g-4" id="rowDisponibilidadeEquipamentosCriticos"></div>
             </div>
         </div>
     </div>
@@ -223,7 +230,41 @@
         </div>
     </div>
 
-    
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <h5 class="text-uppercase text-muted fw-bold small mb-3">
+                    Qtde de Equipamentos Críticos por Unidade
+                </h5>
+                <p class="text-muted small mb-2">
+                    <i class="bi bi-calendar-check"></i> Filtro: Data de Instalação
+                </p>
+                
+                <div style="height: 300px; position: relative;">
+                    <canvas id="chartEquipCriticosPorUnidade"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <h5 class="text-uppercase text-muted fw-bold small mb-3">
+                    Tempo 1º Atendimento Equip. Crítico (h)
+                </h5>
+                <p class="text-muted small mb-2">
+                    <i class="bi bi-stopwatch"></i> Média: Abertura até Chegada Técnica
+                </p>
+                
+                <div style="height: 300px; position: relative;">
+                    <canvas id="chartPrimeiroAtendimentoEquipCritico"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="row g-4 mb-4"> 
@@ -249,6 +290,128 @@
                 <div style="height: 350px; position: relative;">
                     <canvas id="chartIdadeFamiliaEquipamentos"></canvas>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-3">
+                    <h5 class="text-uppercase fw-bold small mb-0 text-danger">
+                        Maiores tempos de reparo de equipamentos críticos por família (h)
+                    </h5>
+                    <span class="badge bg-danger ms-2">Corretiva + Alta Prioridade</span>
+                </div>
+                
+                <div style="height: 350px; position: relative;">
+                    <canvas id="chartReparoCritico"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-3">
+                    <h5 class="text-uppercase fw-bold small mb-0 text-danger">
+                        Principais Causas de Corretivas
+                    </h5>
+                </div>
+                
+                <div style="height: 350px; position: relative;">
+                    <canvas id="chartCausasCorretivas"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-3">
+                    <h5 class="text-uppercase fw-bold small mb-0 text-danger">
+                        Maiores tempos de PARADA de equipamentos críticos por família (h)
+                    </h5>
+                    <span class="badge bg-danger ms-2">Downtime Real</span>
+                </div>
+                
+                <div style="height: 350px; position: relative;">
+                    <canvas id="chartParadaCritica"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <h5 class="text-uppercase text-muted fw-bold small mb-3">
+                    Tempo MEDIANO de Parada de Críticos por Unidade (h)
+                </h5>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="chartMedianaParadaEquipamentosCriticosUnidade"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-3">
+                    <h5 class="text-uppercase text-muted fw-bold small mb-0">
+                        Horários em que equipamentos críticos ficaram indisponíveis
+                    </h5>
+                    <span class="badge bg-danger ms-2">Mapa de Calor (Qtd OS)</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm text-center small align-middle" id="heatmapTable">
+                        <thead>
+                            <tr class="table-light">
+                                <th style="width: 80px;">Hora</th>
+                                {% for dia in pivot_indisponibilidade_equipamentos_criticos.dias %}
+                                    <th>{{ dia }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for linha in pivot_indisponibilidade_equipamentos_criticos.matriz %}
+                            <tr>
+                                <td class="fw-bold text-muted bg-light">{{ linha.hora }}</td>
+                                
+                                {% for valor in linha.valores %}
+                                    <td class="heatmap-cell" data-value="{{ valor }}">
+                                        {% if valor > 0 %}
+                                            {{ valor }}
+                                        {% else %}
+                                            <span class="text-muted fw-light text-opacity-25" style="font-size: 0.8em;">-</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="d-flex justify-content-end mt-2 small text-muted">
+                    <div class="me-3"><span style="display:inline-block;width:12px;height:12px;background-color:#fff;border:1px solid #dee2e6;"></span> 0</div>
+                    <div class="me-3"><span style="display:inline-block;width:12px;height:12px;background-color:#ffebcc;"></span> Baixo</div>
+                    <div class="me-3"><span style="display:inline-block;width:12px;height:12px;background-color:#fd7e14;"></span> Médio</div>
+                    <div><span style="display:inline-block;width:12px;height:12px;background-color:#dc3545;"></span> Alto</div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -293,6 +456,26 @@
 {{ labels_idade_media_equipamentos_familia|json_script:"labels_idade_media_equipamentos_familia"}}
 {{ data_idade_media_equipamentos_familia|json_script:"data_idade_media_equipamentos_familia"}}
 
+{{ labels_reparo_tempo_critico|json_script:"labels_reparo_tempo_critico" }}
+{{ data_reparo_tempo_critico|json_script:"data_reparo_tempo_critico" }}
+
+{{ labels_principais_causas_corretivas|json_script:"labels_principais_causas_corretivas" }}
+{{ data_principais_causas_corretivas|json_script:"data_principais_causas_corretivas" }}
+
+{{ labels_maiores_tempos_parada_criticos_por_familia|json_script:"labels_maiores_tempos_parada_criticos_por_familia" }}
+{{ data_maiores_tempos_parada_criticos_por_familia|json_script:"data_maiores_tempos_parada_criticos_por_familia" }}
+
+{{ labels_tempo_mediano_parada_criticos_por_unidade|json_script:"labels_tempo_mediano_parada_criticos_por_unidade" }}
+{{ data_tempo_mediano_parada_criticos_por_unidade|json_script:"data_tempo_mediano_parada_criticos_por_unidade" }}
+
+{{ labels_taxa_disponibilidade_equipamentos_criticos|json_script:"labels_taxa_disponibilidade_equipamentos_criticos" }}
+{{ data_taxa_disponibilidade_equipamentos_criticos|json_script:"data_taxa_disponibilidade_equipamentos_criticos" }}
+
+{{ labels_equipamentos_criticos_por_unidade|json_script:"labels_equipamentos_criticos_por_unidade" }}
+{{ data_equipamentos_criticos_por_unidade|json_script:"data_equipamentos_criticos_por_unidade" }}
+
+{{ labels_primeiro_atendimento_equipamento_critico|json_script:"labels_primeiro_atendimento_equipamento_critico" }}
+{{ data_primeiro_atendimento_equipamento_critico|json_script:"data_primeiro_atendimento_equipamento_critico" }}
 
 <script src="{% static 'engenharia/js/dashboard_graficos_charts.js' %}"></script>
 {% endblock %}
