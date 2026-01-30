@@ -27,29 +27,26 @@
     </div>
 </div>
 
-{% if not labels_atendimento %}
-    <div class="alert alert-info text-center shadow-sm" role="alert">
-        <i class="bi bi-info-circle-fill me-2"></i>
-        Por favor, <strong>selecione uma Data de Início e Fim</strong> e clique em Filtrar para visualizar os indicadores.
-    </div>
-{% endif %}
+<div class="d-flex justify-content-end mb-3">
+    <span class="badge bg-light text-muted border px-3 py-2 rounded-pill fw-normal">
+        <i class="bi bi-calendar-range me-2"></i> Exibindo dados de <strong>{{ display_inicio }}</strong> até <strong>{{ display_fim }}</strong>
+    </span>
+</div>
 
 <div class="row g-4 mb-4">
     <div class="col-12 col-lg-4">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                        <p class="text-uppercase text-muted fw-bold small mb-1">Tempo médio de atendimento por unidade(h)</p>
-                    </div>
-                </div>
-
-                {% comment %} <div class="mb-4">
-                    <span class="text-muted small">Performance da última campanha</span>
-                </div> {% endcomment %}
-
+                <p class="text-uppercase text-muted fw-bold small mb-3">Tempo médio de atendimento por unidade(h)</p>
                 <div style="height: 250px; position: relative;">
-                    <canvas id="chartAtendimentoMedio"></canvas>
+                    {% if labels_atendimento %}
+                        <canvas id="chartAtendimentoMedio"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -58,18 +55,16 @@
     <div class="col-12 col-lg-4">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                        <p class="text-uppercase text-muted fw-bold small mb-1">Tempo de Reparo x Tempo de Atendimento</p>
-                    </div>
-                </div>
-
-                {% comment %} <div class="mb-4">
-                    <span class="text-muted small">Performance da última campanha</span>
-                </div> {% endcomment %}
-
+                <p class="text-uppercase text-muted fw-bold small mb-3">Tempo de Reparo x Tempo de Atendimento</p>
                 <div style="height: 250px; position: relative;">
-                    <canvas id="chartScatterReparo"></canvas>
+                    {% if dados_scatter %}
+                        <canvas id="chartScatterReparo"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -78,18 +73,16 @@
     <div class="col-12 col-lg-4">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                        <p class="text-uppercase text-muted fw-bold small mb-1">Tempo Médio de Reparo por Unidade (dia)</p>
-                    </div>
-                </div>
-
-                {% comment %} <div class="mb-4">
-                    <span class="text-muted small">Status geral de conclusão</span>
-                </div> {% endcomment %}
-
+                <p class="text-uppercase text-muted fw-bold small mb-3">Tempo Médio de Reparo por Unidade (dia)</p>
                 <div style="height: 250px; position: relative;">
-                    <canvas id="chartReparoMedio"></canvas>
+                    {% if labels_reparo %}
+                        <canvas id="chartReparoMedio"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -100,11 +93,16 @@
     <div class="col-12 col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <h5 class="text-uppercase text-muted fw-bold small mb-3">
-                    Quantidade de OS por Tipo de Manutenção
-                </h5>
+                <h5 class="text-uppercase text-muted fw-bold small mb-3">Quantidade de OS por Tipo de Manutenção</h5>
                 <div style="height: 400px; position: relative;">
-                    <canvas id="chartOsPorTipoManutencao"></canvas>
+                    {% if labels_tipo_manutencao_os %}
+                        <canvas id="chartOsPorTipoManutencao"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -115,22 +113,16 @@
     <div class="col-12 col-lg-4">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                        <p class="text-uppercase text-muted fw-bold small mb-1">Taxa de cumprimento de prev, calib, quali e TSE (%)</p>
-                        {% comment %} <h3 class="fw-bold text-dark mb-0">87%</h3> {% endcomment %}
-                    </div>
-                    {% comment %} <div class="bg-danger bg-opacity-10 text-danger rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                        <i class="bi bi-check-circle fs-4"></i>
-                    </div> {% endcomment %}
-                </div>
-
-                <div class="mb-4">
-                    <span class="text-muted small">Status geral de conclusão</span>
-                </div>
-
+                <p class="text-uppercase text-muted fw-bold small mb-3">Taxa de cumprimento de prev, calib, quali e TSE (%)</p>
                 <div style="height: 250px; position: relative;">
-                    <canvas id="chartCumprimentoPrev"></canvas>
+                    {% if labels_taxa_cumprimento_medio %}
+                        <canvas id="chartCumprimentoPrev"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -141,14 +133,16 @@
     <div class="col-12 col-lg-4">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                        <p class="text-uppercase text-muted fw-bold small mb-1">Quantidade de OS planejadas já realizadas</p>
-                    </div>
-                </div>
-
+                <p class="text-uppercase text-muted fw-bold small mb-3">Quantidade de OS planejadas já realizadas</p>
                 <div style="height: 250px; position: relative;">
-                    <canvas id="chartQtdeOSPlanejdasRealizadas"></canvas>
+                    {% if labels_qtde_os_planejadas_realizadas %}
+                        <canvas id="chartQtdeOSPlanejdasRealizadas"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -157,14 +151,16 @@
     <div class="col-12 col-lg-4">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                        <p class="text-uppercase text-muted fw-bold small mb-1">Quantidade de OS planejadas não fechadas</p>
-                    </div>
-                </div>
-
+                <p class="text-uppercase text-muted fw-bold small mb-3">Quantidade de OS planejadas não fechadas</p>
                 <div style="height: 250px; position: relative;">
-                    <canvas id="chartQtdeOSPlanejdasNFechadas"></canvas>
+                    {% if labels_qtde_os_planejadas_n_realizadas %}
+                        <canvas id="chartQtdeOSPlanejdasNFechadas"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -173,14 +169,16 @@
     <div class="col-12 col-lg-4">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                        <p class="text-uppercase text-muted fw-bold small mb-1">Porcentagem de OS Planejadas Concluídas</p>
-                    </div>
-                </div>
-
+                <p class="text-uppercase text-muted fw-bold small mb-3">Porcentagem de OS Planejadas Concluídas</p>
                 <div style="height: 250px; position: relative;">
-                    <canvas id="chartPorcentagemOSPlanejadasConcluidas"></canvas>
+                    {% if labels_os_taxa_conclusao_planejamento %}
+                        <canvas id="chartPorcentagemOSPlanejadasConcluidas"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -191,13 +189,17 @@
     <div class="col-12 col-lg-4">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                        <p class="text-uppercase text-muted fw-bold small mb-1">Taxa de Disponibilidade Geral dos Equipamentos</p>
+                <p class="text-uppercase text-muted fw-bold small mb-3">Taxa de Disponibilidade Geral dos Equipamentos</p>
+                
+                {% if labels_disponibilidade_equipamentos %}
+                    <div class="row g-4 mb-4" id="chartTaxaDisponibilidadeEquipamentos">
+                        </div>
+                {% else %}
+                    <div style="height: 200px;" class="d-flex flex-column align-items-center justify-content-center text-muted">
+                        <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                        <small>Sem dados no período</small>
                     </div>
-                </div>
-                <div class="row g-4 mb-4" id="chartTaxaDisponibilidadeEquipamentos">
-                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -208,7 +210,15 @@
                 <h5 class="text-uppercase fw-bold small mb-3 text-danger">
                     Taxa de Disponibilidade dos Equipamentos <span class="badge bg-danger">CRÍTICOS</span>
                 </h5>
-                <div class="row g-4" id="rowDisponibilidadeEquipamentosCriticos"></div>
+                {% if labels_taxa_disponibilidade_equipamentos_criticos %}
+                    <div class="row g-4" id="rowDisponibilidadeEquipamentosCriticos">
+                        </div>
+                {% else %}
+                    <div style="height: 200px;" class="d-flex flex-column align-items-center justify-content-center text-muted">
+                        <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                        <small>Sem dados no período</small>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -218,13 +228,17 @@
     <div class="col-12 col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <h5 class="text-uppercase text-muted fw-bold small mb-3">
-                    Qtde de Equipamentos Cadastrados por Unidade
-                </h5>
+                <h5 class="text-uppercase text-muted fw-bold small mb-3">Qtde de Equipamentos Cadastrados por Unidade</h5>
                 <p class="text-muted small mb-2">Filtro por Data de Cadastro</p>
-                
                 <div style="height: 300px; position: relative;">
-                    <canvas id="chartQTDEquipamentosUnidade"></canvas>
+                    {% if labels_equipamentos_unidade %}
+                        <canvas id="chartQTDEquipamentosUnidade"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -233,15 +247,17 @@
     <div class="col-12 col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <h5 class="text-uppercase text-muted fw-bold small mb-3">
-                    Qtde de Equipamentos Críticos por Unidade
-                </h5>
-                <p class="text-muted small mb-2">
-                    <i class="bi bi-calendar-check"></i> Filtro: Data de Instalação
-                </p>
-                
+                <h5 class="text-uppercase text-muted fw-bold small mb-3">Qtde de Equipamentos Críticos por Unidade</h5>
+                <p class="text-muted small mb-2"><i class="bi bi-calendar-check"></i> Filtro: Data de Instalação</p>
                 <div style="height: 300px; position: relative;">
-                    <canvas id="chartEquipCriticosPorUnidade"></canvas>
+                    {% if labels_equipamentos_criticos_por_unidade %}
+                        <canvas id="chartEquipCriticosPorUnidade"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -252,15 +268,16 @@
     <div class="col-12 col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <h5 class="text-uppercase text-muted fw-bold small mb-3">
-                    Tempo 1º Atendimento Equip. Crítico (h)
-                </h5>
-                <p class="text-muted small mb-2">
-                    <i class="bi bi-stopwatch"></i> Média: Abertura até Chegada Técnica
-                </p>
-                
+                <h5 class="text-uppercase text-muted fw-bold small mb-3">Tempo 1º Atendimento Equip. Crítico (h)</h5>
                 <div style="height: 300px; position: relative;">
-                    <canvas id="chartPrimeiroAtendimentoEquipCritico"></canvas>
+                    {% if labels_primeiro_atendimento_equipamento_critico %}
+                        <canvas id="chartPrimeiroAtendimentoEquipCritico"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -271,11 +288,16 @@
     <div class="col-12 col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <h5 class="text-uppercase text-muted fw-bold small mb-3">
-                    Idade Média dos Equipamentos por Unidade (Anos)
-                </h5>
+                <h5 class="text-uppercase text-muted fw-bold small mb-3">Idade Média dos Equipamentos por Unidade (Anos)</h5>
                 <div style="height: 250px; position: relative;">
-                    <canvas id="chartIdadeMediaEquipamentosUnidade"></canvas>
+                    {% if labels_idade_equipamentos_unidade %}
+                        <canvas id="chartIdadeMediaEquipamentosUnidade"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -284,11 +306,16 @@
     <div class="col-12">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <h5 class="text-uppercase text-muted fw-bold small mb-3">
-                    Idade dos Equipamentos por Família (Anos) - Top 20
-                </h5>
+                <h5 class="text-uppercase text-muted fw-bold small mb-3">Idade dos Equipamentos por Família (Anos) - Top 20</h5>
                 <div style="height: 350px; position: relative;">
-                    <canvas id="chartIdadeFamiliaEquipamentos"></canvas>
+                    {% if labels_idade_media_equipamentos_familia %}
+                        <canvas id="chartIdadeFamiliaEquipamentos"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -300,14 +327,18 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
                 <div class="d-flex align-items-center mb-3">
-                    <h5 class="text-uppercase fw-bold small mb-0 text-danger">
-                        Maiores tempos de reparo de equipamentos críticos por família (h)
-                    </h5>
+                    <h5 class="text-uppercase fw-bold small mb-0 text-danger">Maiores tempos de reparo de equipamentos críticos por família (h)</h5>
                     <span class="badge bg-danger ms-2">Corretiva + Alta Prioridade</span>
                 </div>
-                
                 <div style="height: 350px; position: relative;">
-                    <canvas id="chartReparoCritico"></canvas>
+                    {% if labels_reparo_tempo_critico %}
+                        <canvas id="chartReparoCritico"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -319,13 +350,17 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
                 <div class="d-flex align-items-center mb-3">
-                    <h5 class="text-uppercase fw-bold small mb-0 text-danger">
-                        Principais Causas de Corretivas
-                    </h5>
+                    <h5 class="text-uppercase fw-bold small mb-0 text-danger">Principais Causas de Corretivas</h5>
                 </div>
-                
                 <div style="height: 350px; position: relative;">
-                    <canvas id="chartCausasCorretivas"></canvas>
+                    {% if labels_principais_causas_corretivas %}
+                        <canvas id="chartCausasCorretivas"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -337,14 +372,18 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
                 <div class="d-flex align-items-center mb-3">
-                    <h5 class="text-uppercase fw-bold small mb-0 text-danger">
-                        Maiores tempos de PARADA de equipamentos críticos por família (h)
-                    </h5>
+                    <h5 class="text-uppercase fw-bold small mb-0 text-danger">Maiores tempos de PARADA de equipamentos críticos por família (h)</h5>
                     <span class="badge bg-danger ms-2">Downtime Real</span>
                 </div>
-                
                 <div style="height: 350px; position: relative;">
-                    <canvas id="chartParadaCritica"></canvas>
+                    {% if labels_maiores_tempos_parada_criticos_por_familia %}
+                        <canvas id="elchartParadaCritica"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -353,11 +392,16 @@
     <div class="col-12 col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <h5 class="text-uppercase text-muted fw-bold small mb-3">
-                    Tempo MEDIANO de Parada de Críticos por Unidade (h)
-                </h5>
+                <h5 class="text-uppercase text-muted fw-bold small mb-3">Tempo MEDIANO de Parada de Críticos por Unidade (h)</h5>
                 <div style="height: 300px; position: relative;">
-                    <canvas id="chartMedianaParadaEquipamentosCriticosUnidade"></canvas>
+                    {% if labels_tempo_mediano_parada_criticos_por_unidade %}
+                        <canvas id="chartMedianaParadaEquipamentosCriticosUnidade"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-inbox fs-1 mb-2 opacity-50"></i>
+                            <small>Sem dados no período</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -369,9 +413,7 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
                 <div class="d-flex align-items-center mb-3">
-                    <h5 class="text-uppercase text-muted fw-bold small mb-0">
-                        Horários em que equipamentos críticos ficaram indisponíveis
-                    </h5>
+                    <h5 class="text-uppercase text-muted fw-bold small mb-0">Horários em que equipamentos críticos ficaram indisponíveis</h5>
                     <span class="badge bg-danger ms-2">Mapa de Calor (Qtd OS)</span>
                 </div>
 
@@ -387,20 +429,25 @@
                         </thead>
                         <tbody>
                             {% for linha in pivot_indisponibilidade_equipamentos_criticos.matriz %}
-                            <tr>
-                                <td class="fw-bold text-muted bg-light">{{ linha.hora }}</td>
-                                
-                                {% for valor in linha.valores %}
-                                    <td class="heatmap-cell" data-value="{{ valor }}">
-                                        {% if valor > 0 %}
-                                            {{ valor }}
-                                        {% else %}
-                                            <span class="text-muted fw-light text-opacity-25" style="font-size: 0.8em;">-</span>
-                                        {% endif %}
-                                    </td>
-                                {% endfor %}
-                            </tr>
+                        <tr>
+                            <td class="fw-bold text-muted bg-light">{{ linha.hora }}</td>
+                            
+                            {% for celula in linha.celulas %}
+                                <td class="heatmap-cell" 
+                                    data-value="{{ celula.valor }}"
+                                    data-bs-toggle="tooltip" 
+                                    data-bs-html="true" 
+                                    title="{{ celula.tooltip }}">
+                                    
+                                    {% if celula.valor > 0 %}
+                                        {{ celula.valor }}
+                                    {% else %}
+                                        <span class="text-muted fw-light text-opacity-25" style="font-size: 0.8em;">-</span>
+                                    {% endif %}
+                                </td>
                             {% endfor %}
+                        </tr>
+                        {% endfor %}
                         </tbody>
                     </table>
                 </div>

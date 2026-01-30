@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from datetime import datetime, timedelta
+from datetime import datetime
 import calendar
 from .forms import GraficoFilterForm
 from .services.graficos.graficos_dashboards import (
@@ -31,10 +31,26 @@ def home(request):
 
 
 def engenharia_clinica_graficos(request):
+    hoje = datetime.now()
+    inicio_mes = hoje.replace(day=1)
+
+    str_hoje = hoje.strftime('%Y-%m-%d')
+    str_inicio_mes = inicio_mes.strftime('%Y-%m-%d')
+
     # 1. Pega os dados da URL (GET)
-    data_inicio = request.GET.get('data_inicio')
-    data_fim = request.GET.get('data_fim')
+    data_inicio = request.GET.get('data_inicio') or str_inicio_mes
+    data_fim = request.GET.get('data_fim') or str_hoje
+
     empresa = request.GET.get('empresa')
+    if empresa == '':  # Garante que string vazia vire None para os serviços
+        empresa = None
+
+    try:
+        display_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').strftime('%d/%m/%Y')
+        display_fim = datetime.strptime(data_fim, '%Y-%m-%d').strftime('%d/%m/%Y')
+    except:
+        display_inicio = data_inicio
+        display_fim = data_fim
 
     # 2. Configura o formulário com os dados atuais (para não sumir depois de filtrar)
     form = GraficoFilterForm(initial={
@@ -43,232 +59,166 @@ def engenharia_clinica_graficos(request):
         'empresa': empresa
     })
 
-    # 3. Variáveis de Resultado começam VAZIAS (Padrão Rígido)
-    labels_atendimento = []
-    data_atendimento = []
+    # Chama o serviço do Gráfico de Barras
+    labels_atendimento, data_atendimento = get_tempo_medio_atendimento_por_unidade(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    dados_scatter = []
+    # Chama o serviço do Gráfico de Dispersão
+    dados_scatter = get_dispersao_reparo_atendimento(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    labels_reparo = []
-    data_reparo = []
+    # Chama o serviço do Gráfico de Barras para Tempo Médio de Reparo por Unidade (dia)
+    labels_reparo, data_reparo = get_tempo_medio_reparo_por_unidade(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    labels_taxa_cumprimento_medio = []
-    data_taxa_cumprimento_medio = []
-    qtd_fechada = []
-    total_os = []
+    # Chama o serviço do Gráfico de Taxa de Cumprimento por Unidade (percentual)
+    labels_taxa_cumprimento_medio, data_taxa_cumprimento_medio, qtd_fechada, total_os = get_taxa_cumprimento_por_unidade(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
     taxa_cumprimento_metadados = []
+    if labels_taxa_cumprimento_medio:
+        for fechada, total in zip(qtd_fechada, total_os):
+            taxa_cumprimento_metadados.append({
+                'fechada': fechada,
+                'total': total,
+            })
 
-    labels_tipo_manutencao_os = []
-    data_tipo_manutencao_os = []
+    # Chama o serviço do Gráfico de Quantidade de OS por Tipo de Manutenção
+    labels_tipo_manutencao_os, data_tipo_manutencao_os = get_qtde_os_por_tipo_manutencao(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    labels_qtde_os_planejadas_realizadas = []
-    data_qtde_os_planejadas_realizadas = []
+    # Chama o serviço do Gráfico de Quantidade de OS Planejadas Realizadas
+    labels_qtde_os_planejadas_realizadas, data_qtde_os_planejadas_realizadas = get_qtde_os_planejadas_realizadas(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    labels_qtde_os_planejadas_n_realizadas = []
-    data_qtde_os_planejadas_n_realizadas = []
+    # Chama o serviço do Gráfico de Quantidade de OS Planejadas Não Realizadas
+    labels_qtde_os_planejadas_n_realizadas, data_qtde_os_planejadas_n_realizadas = get_qtde_os_planejadas_n_realizadas(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    labels_os_taxa_conclusao_planejamento = []
-    data_os_taxa_conclusao_planejamento = []
-    qtde_os_taxa_conclusao_planejamento = []
-    total_os_taxa_conclusao_planejamento = []
+    # Chama o serviço do Gráfico de Taxa de Conclusão de Planejamento
+    labels_os_taxa_conclusao_planejamento, data_os_taxa_conclusao_planejamento, qtde_os_taxa_conclusao_planejamento, total_os_taxa_conclusao_planejamento = get_os_taxa_conclusao_planejamento(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
     plan_taxa_metadados = []
+    if labels_os_taxa_conclusao_planejamento:
+        for qtde_fechada, total in zip(qtde_os_taxa_conclusao_planejamento, total_os_taxa_conclusao_planejamento):
+            plan_taxa_metadados.append({
+                'fechada': qtde_fechada,
+                'total': total,
+            })
 
-    labels_disponibilidade_equipamentos = []
-    data_disponibilidade_equipamentos = []
+    # Chama o serviço do Gráfico de Taxa de Disponibilidade de Equipamentos
+    labels_disponibilidade_equipamentos, data_disponibilidade_equipamentos = get_taxa_disponibilidade_equipamentos(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    labels_equipamentos_unidade = []
-    data_equipamentos_unidade = []
+    # Chama o serviço do Gráfico de Quantidade de Equipamentos por Unidade
+    labels_equipamentos_unidade, data_equipamentos_unidade = get_qtde_equipamentos_por_unidade(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    labels_idade_equipamentos_unidade = []
-    data_idade_equipamentos_unidade = []
+    # Chama o serviço do Gráfico de Idade Média dos Equipamentos por Unidade
+    labels_idade_equipamentos_unidade, data_idade_equipamentos_unidade = get_idade_media_equipamentos_por_unidade(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    labels_idade_media_equipamentos_familia = []
-    data_idade_media_equipamentos_familia = []
+    # Chama o serviço do Gráfico de Idade Média dos Equipamentos por Família
+    labels_idade_media_equipamentos_familia, data_idade_media_equipamentos_familia = get_idade_media_equipamentos_por_familia(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    labels_reparo_tempo_critico = []
-    data_reparo_tempo_critico = []
+    # Chama o serviço do Gráfico de Maiores tempos de reparo de equipamentos criticos por familia (h)
+    labels_reparo_tempo_critico, data_reparo_tempo_critico = get_maiores_tempos_reparo_criticos_por_familia(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    labels_principais_causas_corretivas = []
-    data_principais_causas_corretivas = []
+    # Chama o serviço do Gráfico de Principais causas corretivas
+    labels_principais_causas_corretivas, data_principais_causas_corretivas = get_principais_causas_corretivas(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    labels_maiores_tempos_parada_criticos_por_familia = []
-    data_maiores_tempos_parada_criticos_por_familia = []
+    # Chama o serviço do Gráfico dos Maiores tempos de parada de Equipamentos criticos por familia
+    labels_maiores_tempos_parada_criticos_por_familia, data_maiores_tempos_parada_criticos_por_familia = get_maiores_tempos_parada_criticos_por_familia(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    labels_tempo_mediano_parada_criticos_por_unidade = []
-    data_tempo_mediano_parada_criticos_por_unidade = []
+    # Chama o Serviço do Gráfico do Tempo mediano de parada de equipamentos criticos das unidades
+    labels_tempo_mediano_parada_criticos_por_unidade, data_tempo_mediano_parada_criticos_por_unidade = get_tempo_mediano_parada_criticos_por_unidade(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    pivot_indisponibilidade_equipamentos_criticos = {}
+    # Chama o Serviço do Gráfico de Horarios que os equipamentos criticos ficaram indisponiveis
+    pivot_indisponibilidade_equipamentos_criticos = get_matriz_indisponibilidade_criticos(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    labels_taxa_disponibilidade_equipamentos_criticos = []
-    data_taxa_disponibilidade_equipamentos_criticos = []
+    # Chama o Serviço do Gráfico Taxa de Disponibilidade Dos Equipamentos Críticos
+    labels_taxa_disponibilidade_equipamentos_criticos, data_taxa_disponibilidade_equipamentos_criticos = get_taxa_disponibilidade_equipamentos_criticos(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    labels_equipamentos_criticos_por_unidade = []
-    data_equipamentos_criticos_por_unidade = []
+    # Chama o Serviço do Gráfico Quantidade de Equipamentos Criticos por Unidade
+    labels_equipamentos_criticos_por_unidade, data_equipamentos_criticos_por_unidade = get_qtde_equipamentos_criticos_por_unidade(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
-    labels_primeiro_atendimento_equipamento_critico = []
-    data_primeiro_atendimento_equipamento_critico = []
-
-    # 4. Lógica de Filtragem
-    # Só executa a busca se tiver data_inicio e data_fim preenchidos
-    if data_inicio and data_fim:
-
-        # Chama o serviço do Gráfico de Barras
-        labels_atendimento, data_atendimento = get_tempo_medio_atendimento_por_unidade(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o serviço do Gráfico de Dispersão
-        dados_scatter = get_dispersao_reparo_atendimento(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o serviço do Gráfico de Barras para Tempo Médio de Reparo por Unidade (dia)
-        labels_reparo, data_reparo = get_tempo_medio_reparo_por_unidade(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o serviço do Gráfico de Taxa de Cumprimento por Unidade (percentual)
-        labels_taxa_cumprimento_medio, data_taxa_cumprimento_medio, qtd_fechada, total_os = get_taxa_cumprimento_por_unidade(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        if labels_taxa_cumprimento_medio:
-            for fechada, total in zip(qtd_fechada, total_os):
-                taxa_cumprimento_metadados.append({
-                    'fechada': fechada,
-                    'total': total,
-                })
-
-        # Chama o serviço do Gráfico de Quantidade de OS por Tipo de Manutenção
-        labels_tipo_manutencao_os, data_tipo_manutencao_os = get_qtde_os_por_tipo_manutencao(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o serviço do Gráfico de Quantidade de OS Planejadas Realizadas
-        labels_qtde_os_planejadas_realizadas, data_qtde_os_planejadas_realizadas = get_qtde_os_planejadas_realizadas(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o serviço do Gráfico de Quantidade de OS Planejadas Não Realizadas
-        labels_qtde_os_planejadas_n_realizadas, data_qtde_os_planejadas_n_realizadas = get_qtde_os_planejadas_n_realizadas(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o serviço do Gráfico de Taxa de Conclusão de Planejamento
-        labels_os_taxa_conclusao_planejamento, data_os_taxa_conclusao_planejamento, qtde_os_taxa_conclusao_planejamento, total_os_taxa_conclusao_planejamento = get_os_taxa_conclusao_planejamento(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        if labels_os_taxa_conclusao_planejamento:
-            for qtde_fechada, total in zip(qtde_os_taxa_conclusao_planejamento, total_os_taxa_conclusao_planejamento):
-                plan_taxa_metadados.append({
-                    'fechada': qtde_fechada,
-                    'total': total,
-                })
-
-        # Chama o serviço do Gráfico de Taxa de Disponibilidade de Equipamentos
-        labels_disponibilidade_equipamentos, data_disponibilidade_equipamentos = get_taxa_disponibilidade_equipamentos(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o serviço do Gráfico de Quantidade de Equipamentos por Unidade
-        labels_equipamentos_unidade, data_equipamentos_unidade = get_qtde_equipamentos_por_unidade(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o serviço do Gráfico de Idade Média dos Equipamentos por Unidade
-        labels_idade_equipamentos_unidade, data_idade_equipamentos_unidade = get_idade_media_equipamentos_por_unidade(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o serviço do Gráfico de Idade Média dos Equipamentos por Família
-        labels_idade_media_equipamentos_familia, data_idade_media_equipamentos_familia = get_idade_media_equipamentos_por_familia(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o serviço do Gráfico de Maiores tempos de reparo de equipamentos criticos por familia (h)
-        labels_reparo_tempo_critico, data_reparo_tempo_critico = get_maiores_tempos_reparo_criticos_por_familia(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o serviço do Gráfico de Principais causas corretivas
-        labels_principais_causas_corretivas, data_principais_causas_corretivas = get_principais_causas_corretivas(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o serviço do Gráfico dos Maiores tempos de parada de Equipamentos criticos por familia
-        labels_maiores_tempos_parada_criticos_por_familia, data_maiores_tempos_parada_criticos_por_familia = get_maiores_tempos_parada_criticos_por_familia(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o Serviço do Gráfico do Tempo mediano de parada de equipamentos criticos das unidades
-        labels_tempo_mediano_parada_criticos_por_unidade, data_tempo_mediano_parada_criticos_por_unidade = get_tempo_mediano_parada_criticos_por_unidade(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o Serviço do Gráfico de Horarios que os equipamentos criticos ficaram indisponiveis
-        pivot_indisponibilidade_equipamentos_criticos = get_matriz_indisponibilidade_criticos(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o Serviço do Gráfico Taxa de Disponibilidade Dos Equipamentos Críticos
-        labels_taxa_disponibilidade_equipamentos_criticos, data_taxa_disponibilidade_equipamentos_criticos = get_taxa_disponibilidade_equipamentos_criticos(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o Serviço do Gráfico Quantidade de Equipamentos Criticos por Unidade
-        labels_equipamentos_criticos_por_unidade, data_equipamentos_criticos_por_unidade = get_qtde_equipamentos_criticos_por_unidade(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
-
-        # Chama o Serviço do Gráfico Tempo do Primeito Atendimento de Equipamento Critico
-        labels_primeiro_atendimento_equipamento_critico, data_primeiro_atendimento_equipamento_critico = get_tempo_primeiro_atendimento_critico(
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            empresa=empresa
-        )
+    # Chama o Serviço do Gráfico Tempo do Primeito Atendimento de Equipamento Critico
+    labels_primeiro_atendimento_equipamento_critico, data_primeiro_atendimento_equipamento_critico = get_tempo_primeiro_atendimento_critico(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        empresa=empresa
+    )
 
     # 5. Passa para o template (Se não entrou no if, vai tudo vazio)
     context = {
         'form': form,
+        'display_inicio': display_inicio,
+        'display_fim': display_fim,
+
         # Gráfico de Tempo Médio de Atendimento por Unidade
         'labels_atendimento': labels_atendimento,
         'data_atendimento': data_atendimento,

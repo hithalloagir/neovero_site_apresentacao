@@ -898,6 +898,7 @@ def get_maiores_tempos_parada_criticos_por_familia(data_inicio=None, data_fim=No
 
     # Top 20
     df_agrupado = df_agrupado.head(20)
+    print(df_agrupado)
 
     return df_agrupado['familia'].tolist(), df_agrupado['horas_parada'].tolist()
 
@@ -968,8 +969,7 @@ def get_tempo_mediano_parada_criticos_por_unidade(data_inicio=None, data_fim=Non
 
 def get_matriz_indisponibilidade_criticos(data_inicio=None, data_fim=None, empresa=None):
     """
-    Retorna matriz para Heatmap.
-    CORREÇÃO: Retorna lista de valores ordenada para facilitar o loop no HTML.
+    Retorna matriz para Heatmap com DETALHAMENTO por empresa no tooltip.
     """
 
     # 1. Busca os dados
@@ -983,18 +983,17 @@ def get_matriz_indisponibilidade_criticos(data_inicio=None, data_fim=None, empre
 
     df = pd.DataFrame(list(queryset))
 
-    # Estrutura vazia padrão
     dias_ordenados = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
-    if df.empty:
-        # Retorna estrutura vazia para não quebrar o HTML
-        matriz_vazia = []
+    # Função auxiliar para criar estrutura vazia
+    def matriz_vazia():
+        m = []
         for h in range(24):
-            matriz_vazia.append({
-                'hora': f"{h:02d}:00",
-                'valores': [0] * 7  # Lista com 7 zeros
-            })
-        return {'dias': dias_ordenados, 'matriz': matriz_vazia}
+            m.append({'hora': f"{h:02d}:00", 'celulas': [{'valor': 0, 'tooltip': ''}] * 7})
+        return {'dias': dias_ordenados, 'matriz': m}
+
+    if df.empty:
+        return matriz_vazia()
 
     # 2. Tratamento
     df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
@@ -1007,44 +1006,51 @@ def get_matriz_indisponibilidade_criticos(data_inicio=None, data_fim=None, empre
         df = df[df['abertura'] <= fim]
 
     if df.empty:
-        # Repete a lógica de retorno vazio se filtrar tudo
-        matriz_vazia = []
-        for h in range(24):
-            matriz_vazia.append({'hora': f"{h:02d}:00", 'valores': [0] * 7})
-        return {'dias': dias_ordenados, 'matriz': matriz_vazia}
+        return matriz_vazia()
 
     # 3. MenosDuplicadas
     df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
 
-    # 4. Pivot
+    # 4. Prepara colunas para agrupamento
     df['hora'] = df['abertura'].dt.hour
     df['dia_semana_int'] = df['abertura'].dt.dayofweek  # 0=Seg ... 6=Dom
 
-    df_pivot = df.groupby(['hora', 'dia_semana_int']).size().reset_index(name='qtd')
-
-    # 5. Montagem da Matriz (Com LISTA de valores)
+    # 5. Montagem da Matriz com Detalhamento
     matriz = []
 
     for h in range(24):
-        linha_valores = []  # Essa lista vai guardar [ValorSeg, ValorTer, ValorQua...]
+        linha_celulas = []
+
+        # Filtra apenas dados desta hora para ganhar performance no loop dos dias
+        df_hora = df[df['hora'] == h]
 
         for d_int in range(7):
-            # Tenta achar o valor no dataframe agrupado
-            filtro = df_pivot[
-                (df_pivot['hora'] == h) &
-                (df_pivot['dia_semana_int'] == d_int)
-            ]
+            # Filtra pelo dia da semana dentro daquela hora
+            df_slice = df_hora[df_hora['dia_semana_int'] == d_int]
 
-            valor = 0
-            if not filtro.empty:
-                valor = int(filtro['qtd'].values[0])  # Pega o valor real
+            total = len(df_slice)
+            tooltip_str = ""
 
-            linha_valores.append(valor)
+            if total > 0:
+                # Conta quantas OS cada empresa teve nesse horário específico
+                # Ex: HUGOL: 2, CRER: 1
+                contagem_empresas = df_slice['empresa'].value_counts()
 
-        # Adiciona o objeto final da hora
+                # Monta string HTML para o Tooltip: "<b>HUGOL</b>: 2<br><b>CRER</b>: 1"
+                lista_detalhes = []
+                for emp_nome, emp_qtd in contagem_empresas.items():
+                    lista_detalhes.append(f"<b>{emp_nome}</b>: {emp_qtd}")
+
+                tooltip_str = "<br>".join(lista_detalhes)
+
+            linha_celulas.append({
+                'valor': total,
+                'tooltip': tooltip_str
+            })
+
         matriz.append({
             'hora': f"{h:02d}:00",
-            'valores': linha_valores  # <--- AQUI ESTÁ A CORREÇÃO
+            'celulas': linha_celulas  # Lista de objetos {valor, tooltip}
         })
 
     return {
