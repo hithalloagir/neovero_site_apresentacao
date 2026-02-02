@@ -28,6 +28,16 @@ from .services.graficos.graficos_dashboards import (
     get_tempo_primeiro_atendimento_critico,
 )
 
+from .services.indicadores.indicadores_dashboards import (
+    get_total_equipamentos_cadastrados,
+    get_total_os_corretivas,
+    get_maiores_causas_corretivas,
+    get_mtbf_medio_kpi,
+    get_mttr_kpi,
+    get_tempo_medio_primeiro_atendimento_kpi,
+    get_tempo_mediano_primeiro_atendimento_kpi,
+)
+
 
 def home(request):
     return render(request, 'engenharia/home.html')
@@ -274,9 +284,78 @@ def engenharia_clinica_indicadores(request):
         'empresa': empresa
     })
 
+    # ---------------------------------------------------------
+    # 2. CARGA DE DADOS OTIMIZADA (DataFrames Únicos)
+    # ---------------------------------------------------------
+
+    # --- A. Carregar Dados de OS (ConsultaOs) ---
+    # Filtramos por data diretamente no banco para trazer apenas o necessário (Performance)
+    filtros_os = {}
+    if empresa:
+        filtros_os['empresa'] = empresa
+
+    # Selecionamos apenas as colunas usadas nos gráficos para economizar memória
+    cols_os = [
+        'os', 'tag', 'local_api', 'empresa', 'abertura', 'fechamento',
+        'data_atendimento', 'situacao', 'tipomanutencao', 'causa',
+        'prioridade', 'equipamento', 'parada', 'funcionamento', 'ocorrencia',
+        'data_chamado'
+    ]
+
+    # Executa a query
+    qs_os = ConsultaOs.objects.filter(**filtros_os).values(*cols_os)
+    df_os = pd.DataFrame(list(qs_os))
+
+    # Pré-processamento Global de Datas (Faz apenas 1 vez para todos os gráficos)
+    if not df_os.empty:
+        cols_data_os = ['abertura', 'fechamento', 'data_atendimento', 'parada', 'funcionamento']
+        for col in cols_data_os:
+            # errors='coerce' transforma erros em NaT (Not a Time)
+            df_os[col] = pd.to_datetime(df_os[col], errors='coerce')
+
+    # --- B. Carregar Dados de Equipamentos (ConsultaEquipamentos) ---
+    filtros_equip = {
+        'cadastro__gte': data_inicio,
+        'cadastro__lte': f"{data_fim} 23:59:59"
+    }
+    if empresa:
+        filtros_equip['empresa'] = empresa
+
+    # Colunas necessárias
+    cols_equip = ['empresa', 'tag', 'familia', 'instalacao', 'cadastro', 'garantia']
+
+    qs_equip = ConsultaEquipamentos.objects.filter(**filtros_equip).values(*cols_equip)
+    df_equip = pd.DataFrame(list(qs_equip))
+
+    # Pré-processamento Equipamentos
+    if not df_equip.empty:
+        df_equip['instalacao'] = pd.to_datetime(df_equip['instalacao'], errors='coerce')
+        df_equip['cadastro'] = pd.to_datetime(df_equip['cadastro'], errors='coerce')
+
+    # ---------------------------------------------------------
+    # 3. GERAÇÃO DOS INDICADORES (Passando os DataFrames)
+    # ---------------------------------------------------------
+    total_equipamentos_cadastrados = get_total_equipamentos_cadastrados(df_equip)
+    total_os_corretiva = get_total_os_corretivas(df_os)
+    maiores_causas_corretivas = get_maiores_causas_corretivas(df_os, data_inicio, data_fim)
+    kpi_mtbf = get_mtbf_medio_kpi(df_equip)
+    kpi_mttr = get_mttr_kpi(df_os, data_inicio, data_fim)
+    kpi_tma = get_tempo_medio_primeiro_atendimento_kpi(df_os, data_inicio, data_fim)
+    kpi_tma_mediana = get_tempo_mediano_primeiro_atendimento_kpi(df_os, data_inicio, data_fim)
+
     context = {
         'form': form,
         'display_inicio': display_inicio,
         'display_fim': display_fim,
+
+        # Indicadores
+        'total_equipamentos_cadastrados': total_equipamentos_cadastrados,
+        'total_os_corretiva': total_os_corretiva,
+        'maiores_causas_corretivas': maiores_causas_corretivas,
+        'kpi_mtbf': kpi_mtbf,
+        'kpi_mttr': kpi_mttr,
+        'kpi_tma': kpi_tma,
+        'kpi_tma_mediana': kpi_tma_mediana,
+
     }
     return render(request, 'engenharia/indicadores.html', context)
