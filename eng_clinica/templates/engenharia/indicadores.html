@@ -243,6 +243,172 @@
         </div>
     </div>
 </div>
+
+<div class="col-12 col-md-6 col-lg-4">
+    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+        <div class="card-body p-4 position-relative">
+            
+            <h6 class="text-uppercase text-muted fw-bold small mb-2">TMA Crítico (Alta Prioridade)</h6>
+            
+            {% if kpi_tma_critico > 0 %}
+                <p class="text-muted small mb-3">Tempo p/ Atender Emergências</p>
+                <div class="d-flex align-items-center">
+                    <h1 class="display-4 fw-bold mb-0 text-danger">
+                        {{ kpi_tma_critico }}<span class="fs-4 text-muted ms-1">h</span>
+                    </h1>
+                </div>
+            {% else %}
+                <p class="text-muted small mb-3">Sem chamados críticos</p>
+                <div class="d-flex align-items-center">
+                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
+                </div>
+            {% endif %}
+
+            <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma_critico|yesno:'opacity-10,opacity-0' }}">
+                <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 5rem;"></i>
+            </div>
+        </div>
+        
+        <div class="card-footer bg-light border-0 py-2 px-4">
+            <small class="text-muted">
+                <i class="bi bi-lightning-charge me-1"></i> Corretivas de Alta Prioridade
+            </small>
+        </div>
+    </div>
+</div>
+
+<div class="col-12 col-md-6 col-lg-4">
+    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+        <div class="card-body p-4 position-relative">
+            
+            <h6 class="text-uppercase text-muted fw-bold small mb-2">Mediana 1º Atendimento Crítico</h6>
+            
+            {% if kpi_tma_critico_mediana > 0 %}
+                <p class="text-muted small mb-3">Valor Central (Horas)</p>
+                <div class="d-flex align-items-center">
+                    <h1 class="display-4 fw-bold mb-0" style="color: #6f42c1;">
+                        {{ kpi_tma_critico_mediana }}<span class="fs-4 text-muted ms-1">h</span>
+                    </h1>
+                </div>
+            {% else %}
+                <p class="text-muted small mb-3">Sem dados válidos</p>
+                <div class="d-flex align-items-center">
+                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
+                </div>
+            {% endif %}
+
+            <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma_critico_mediana|yesno:'opacity-10,opacity-0' }}">
+                <i class="bi bi-funnel" style="font-size: 5rem; color: #6f42c1;"></i>
+            </div>
+        </div>
+        
+        <div class="card-footer bg-light border-0 py-2 px-4">
+            <small class="text-muted">
+                <i class="bi bi-filter me-1"></i> Desconsidera extremos
+            </small>
+        </div>
+    </div>
+</div>
+
+<div class="col-12 col-md-6 col-lg-4">
+    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+        <div class="card-body p-4 position-relative">
+            
+            <h6 class="text-uppercase text-muted fw-bold small mb-2">Downtime Médio Crítico</h6>
+            
+            {% if kpi_tma_equipamento_critico_parado > 0 %}
+                <p class="text-muted small mb-3">Tempo Equipamento Parado</p>
+                <div class="d-flex align-items-center">
+                    <h1 class="display-4 fw-bold mb-0 text-danger">
+                        {{ kpi_tma_equipamento_critico_parado }}<span class="fs-4 text-muted ms-1">h</span>
+                    </h1>
+                </div>
+            {% else %}
+                <p class="text-muted small mb-3">Sem paradas críticas</p>
+                <div class="d-flex align-items-center">
+                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
+                </div>
+            {% endif %}
+
+            <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma_equipamento_critico_parado|yesno:'opacity-10,opacity-0' }}">
+                <i class="bi bi-x-octagon-fill text-danger" style="font-size: 5rem;"></i>
+            </div>
+        </div>
+        
+        <div class="card-footer bg-light border-0 py-2 px-4">
+            <small class="text-muted">
+                <i class="bi bi-clock-history me-1"></i> (Funcionamento - Parada)
+            </small>
+        </div>
+    </div>
+</div>
+
+<div class="col-12 col-md-6 col-lg-4">
+    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+        <div class="card-body p-4 position-relative">
+            
+            <h6 class="text-uppercase text-muted fw-bold small mb-2">Mediana Tempo Equipamento Parado</h6>
+            
+            {% if kpi_tma_equipamento_critico_parado_mediana > 0 %}
+                <p class="text-muted small mb-3">Valor Central (Horas)</p>
+                <div class="d-flex align-items-center">
+                    <h1 class="display-4 fw-bold mb-0" style="color: #6f42c1;">
+                        {{ kpi_tma_equipamento_critico_parado_mediana }}<span class="fs-4 text-muted ms-1">h</span>
+                    </h1>
+                </div>
+            {% else %}
+                <p class="text-muted small mb-3">Sem dados válidos</p>
+                <div class="d-flex align-items-center">
+                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
+                </div>
+            {% endif %}
+
+            <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma_equipamento_critico_parado_mediana|yesno:'opacity-10,opacity-0' }}">
+                <i class="bi bi-funnel" style="font-size: 5rem; color: #6f42c1;"></i>
+            </div>
+        </div>
+        
+        <div class="card-footer bg-light border-0 py-2 px-4">
+            <small class="text-muted">
+                <i class="bi bi-filter me-1"></i> Desconsidera extremos
+            </small>
+        </div>
+    </div>
+</div>
+
+<div class="col-12 col-md-6 col-lg-4">
+    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+        <div class="card-body p-4 position-relative">
+            
+            <h6 class="text-uppercase text-muted fw-bold small mb-2">Disponibilidade Global</h6>
+            
+            {% if kpi_taxa_disponibilidade > 0 %}
+                <p class="text-muted small mb-3">Taxa de Operação</p>
+                <div class="d-flex align-items-center">
+                    <h1 class="display-4 fw-bold mb-0 text-success">
+                        {{ kpi_taxa_disponibilidade }}<span class="fs-4 text-muted ms-1">%</span>
+                    </h1>
+                </div>
+            {% else %}
+                <p class="text-muted small mb-3">Sem dados para cálculo</p>
+                <div class="d-flex align-items-center">
+                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
+                </div>
+            {% endif %}
+
+            <div class="position-absolute top-0 end-0 p-3 {{ kpi_taxa_disponibilidade|yesno:'opacity-10,opacity-0' }}">
+                <i class="bi bi-check-circle-fill text-success" style="font-size: 5rem;"></i>
+            </div>
+        </div>
+        
+        <div class="card-footer bg-light border-0 py-2 px-4">
+            <small class="text-muted">
+                <i class="bi bi-graph-up-arrow me-1"></i> (Horas Úteis - Paradas) / Úteis
+            </small>
+        </div>
+    </div>
+</div>
+
 <div class="row g-4 mb-4">
     <div class="col-12 col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 h-100">
@@ -298,6 +464,7 @@
     <div class="col-12 col-lg-6">
         </div>
 </div>
+
 
 
 

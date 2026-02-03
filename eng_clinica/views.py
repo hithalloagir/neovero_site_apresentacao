@@ -36,6 +36,11 @@ from .services.indicadores.indicadores_dashboards import (
     get_mttr_kpi,
     get_tempo_medio_primeiro_atendimento_kpi,
     get_tempo_mediano_primeiro_atendimento_kpi,
+    get_tempo_medio_primeiro_atendimento_critico_kpi,
+    get_tempo_mediano_primeiro_atendimento_critico_kpi,
+    get_tempo_medio_equipamento_critico_parado_kpi,
+    get_tempo_mediano_equipamento_critico_parado_kpi,
+    get_taxa_disponibilidade_kpi,
 )
 
 
@@ -314,10 +319,7 @@ def engenharia_clinica_indicadores(request):
             df_os[col] = pd.to_datetime(df_os[col], errors='coerce')
 
     # --- B. Carregar Dados de Equipamentos (ConsultaEquipamentos) ---
-    filtros_equip = {
-        'cadastro__gte': data_inicio,
-        'cadastro__lte': f"{data_fim} 23:59:59"
-    }
+    filtros_equip = {}
     if empresa:
         filtros_equip['empresa'] = empresa
 
@@ -335,13 +337,21 @@ def engenharia_clinica_indicadores(request):
     # ---------------------------------------------------------
     # 3. GERAÇÃO DOS INDICADORES (Passando os DataFrames)
     # ---------------------------------------------------------
-    total_equipamentos_cadastrados = get_total_equipamentos_cadastrados(df_equip)
-    total_os_corretiva = get_total_os_corretivas(df_os)
+    total_equipamentos_cadastrados = get_total_equipamentos_cadastrados(df_equip, data_inicio, data_fim)
+    total_os_corretiva = get_total_os_corretivas(df_os, data_inicio, data_fim)
     maiores_causas_corretivas = get_maiores_causas_corretivas(df_os, data_inicio, data_fim)
+
+    # MTBF (Geralmente é sobre o inventário ATUAL/TOTAL, então não costuma ter filtro de data no df_equip, a menos que queira MTBF só de máquinas novas)
     kpi_mtbf = get_mtbf_medio_kpi(df_equip)
+
     kpi_mttr = get_mttr_kpi(df_os, data_inicio, data_fim)
     kpi_tma = get_tempo_medio_primeiro_atendimento_kpi(df_os, data_inicio, data_fim)
     kpi_tma_mediana = get_tempo_mediano_primeiro_atendimento_kpi(df_os, data_inicio, data_fim)
+    kpi_tma_critico = get_tempo_medio_primeiro_atendimento_critico_kpi(df_os, data_inicio, data_fim)
+    kpi_tma_critico_mediana = get_tempo_mediano_primeiro_atendimento_critico_kpi(df_os, data_inicio, data_fim)
+    kpi_tma_equipamento_critico_parado = get_tempo_medio_equipamento_critico_parado_kpi(df_os, data_inicio, data_fim)
+    kpi_tma_equipamento_critico_parado_mediana = get_tempo_mediano_equipamento_critico_parado_kpi(df_os, data_inicio, data_fim)
+    kpi_taxa_disponibilidade = get_taxa_disponibilidade_kpi(df_os, df_equip, data_inicio, data_fim)
 
     context = {
         'form': form,
@@ -356,6 +366,12 @@ def engenharia_clinica_indicadores(request):
         'kpi_mttr': kpi_mttr,
         'kpi_tma': kpi_tma,
         'kpi_tma_mediana': kpi_tma_mediana,
+        'kpi_tma_critico': kpi_tma_critico,
+        'kpi_tma_critico_mediana': kpi_tma_critico_mediana,
+        'kpi_tma_equipamento_critico_parado': kpi_tma_equipamento_critico_parado,
+        'kpi_tma_equipamento_critico_parado_mediana': kpi_tma_equipamento_critico_parado_mediana,
+        'kpi_taxa_disponibilidade': kpi_taxa_disponibilidade,
+
 
     }
     return render(request, 'engenharia/indicadores.html', context)
