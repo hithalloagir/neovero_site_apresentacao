@@ -743,3 +743,677 @@ def get_taxa_disponibilidade_kpi(df_os, df_equip, data_inicio=None, data_fim=Non
 
     # Retorna em Porcentagem (ex: 98.5)
     return round(taxa * 100, 2)
+
+
+def get_taxa_disponibilidade_criticos_kpi(df_os, df_equip, data_inicio=None, data_fim=None):
+    """
+    Calcula a Taxa de Disponibilidade (%) APENAS para Equipamentos Críticos.
+    Definição de Crítico: Equipamento que possui OS com prioridade 'ALTA' no conjunto de dados.
+    """
+    # 1. Definição do Período (Dias)
+    if data_inicio and data_fim:
+        dt_ini = pd.to_datetime(data_inicio)
+        dt_fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        dias_periodo = (dt_fim - dt_ini).days + 1
+    else:
+        dias_periodo = 30
+        if not df_os.empty and 'abertura' in df_os.columns:
+            dias_periodo = (df_os['abertura'].max() - df_os['abertura'].min()).days + 1
+
+    if dias_periodo < 1:
+        dias_periodo = 1
+
+    # 2. Identificar o Universo de Equipamentos Críticos (O "Agregado")
+    # Precisamos saber QUANTOS equipamentos são críticos para calcular as horas potenciais totais.
+    if df_os.empty or df_equip.empty:
+        return 0
+
+    # Acha tags que tiveram prioridade ALTA (no período carregado)
+    # Se você quiser ser mais preciso, precisaria do histórico total, mas usaremos o recorte atual.
+    tags_criticas = []
+    if 'prioridade' in df_os.columns and 'tag' in df_os.columns:
+        tags_criticas = df_os[
+            df_os['prioridade'].str.upper().str.contains('ALTA', na=False)
+        ]['tag'].unique()
+
+    if len(tags_criticas) == 0:
+        return 0  # Se não tem equipamento crítico, não tem indicador
+
+    # Cruza com df_equip para garantir que são equipamentos ativos/cadastrados
+    df_e_crit = df_equip[df_equip['tag'].isin(tags_criticas)].copy()
+
+    # Limpeza de duplicatas/vazios
+    if 'tag' in df_e_crit.columns:
+        df_e_crit = df_e_crit.dropna(subset=['tag'])
+        df_e_crit = df_e_crit[df_e_crit['tag'] != '']
+        qtd_equipamentos_criticos = df_e_crit['tag'].nunique()
+    else:
+        qtd_equipamentos_criticos = 0
+
+    if qtd_equipamentos_criticos == 0:
+        return 0
+
+    # 3. Calcular Horas Parado (Downtime) DOS CRÍTICOS
+    horas_parado = 0
+
+    # Filtra OS para cálculo (Datas + Tipo + Prioridade + Duplicatas)
+    df = df_os.copy()
+
+    # Conversão de datas
+    for c in ['abertura', 'fechamento']:
+        if c in df.columns:
+            df[c] = pd.to_datetime(df[c], errors='coerce')
+    df = df.dropna(subset=['abertura', 'fechamento'])
+
+    # Filtro Data
+    if data_inicio:
+        df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+    if data_fim:
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df = df[df['abertura'] <= fim]
+
+    # Filtro: Apenas as tags que identificamos como críticas
+    df = df[df['tag'].isin(tags_criticas)]
+
+    # Filtro Tipo (Corretiva) - Disponibilidade geralmente olha para quebras
+    if 'tipomanutencao' in df.columns:
+        df = df[df['tipomanutencao'].str.upper() == 'CORRETIVA']
+
+    # Filtro Duplicatas
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    # Cálculo Downtime
+    df['downtime'] = (df['fechamento'] - df['abertura']).dt.total_seconds() / 3600
+    df = df[df['downtime'] > 0]
+
+    horas_parado = df['downtime'].sum()
+
+    # 4. Cálculo Final
+    # Horas Potenciais = 24h * Dias * Qtd Equipamentos Críticos
+    horas_totais_potenciais = 24 * dias_periodo * qtd_equipamentos_criticos
+
+    if horas_totais_potenciais == 0:
+        return 0
+
+    taxa = (horas_totais_potenciais - horas_parado) / horas_totais_potenciais
+
+    return round(taxa * 100, 2)
+
+
+def get_qtde_equipamentos_indisponiveis_kpi(df_os, data_inicio=None, data_fim=None):
+    """
+    Retorna a quantidade de equipamentos que ficaram INDISPONÍVEIS no período.
+    Lógica: Equipamentos com OS onde o campo 'parada' está preenchido.
+    Filtros:
+      - Date Range: abertura
+      - Indisponível: Parada IS NOT NULL
+      - MenosDuplicadas (Conta equipamentos únicos afetados)
+    """
+    if df_os.empty:
+        return 0
+
+    df = df_os.copy()
+
+    # 1. Conversão de Datas
+    if 'abertura' in df.columns:
+        df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+
+    if 'parada' in df.columns:
+        df['parada'] = pd.to_datetime(df['parada'], errors='coerce')
+
+    # 2. Filtro de Data (Ref: ABERTURA)
+    # Queremos saber: Quantos equipamentos quebraram (abriram OS com parada) neste período?
+    if 'abertura' in df.columns:
+        df = df.dropna(subset=['abertura'])
+        if data_inicio:
+            df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+        if data_fim:
+            fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+            df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        return 0
+
+    # 3. FILTRO "INDISPONÍVEIS" (Onde parada existe)
+    # Se tem data de parada, gerou indisponibilidade.
+    df = df.dropna(subset=['parada'])
+
+    if df.empty:
+        return 0
+
+    # 4. Contagem Distinta de Equipamentos (Tags)
+    # Se o mesmo equipamento parou 3 vezes no mês, conta como 1 equipamento "problemático" no KPI?
+    # Geralmente KPIs de "Quantidade de Equipamentos" contam itens únicos.
+    df = df.drop_duplicates(subset=['tag'])
+
+    return df.shape[0]
+
+
+def get_qtde_equipamentos_criticos_indisponiveis_kpi(df_os, data_inicio=None, data_fim=None):
+    """
+    Retorna a quantidade de equipamentos CRÍTICOS que ficaram INDISPONÍVEIS.
+    Filtros:
+      - Date Range: abertura
+      - Indisponível: Parada IS NOT NULL
+      - Crítico: Prioridade contém 'ALTA'
+      - MenosDuplicadas (Conta equipamentos únicos afetados)
+    """
+    if df_os.empty:
+        return 0
+
+    df = df_os.copy()
+
+    # 1. Conversão de Datas
+    if 'abertura' in df.columns:
+        df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+
+    if 'parada' in df.columns:
+        df['parada'] = pd.to_datetime(df['parada'], errors='coerce')
+
+    # 2. Filtro de Data (Ref: ABERTURA)
+    if 'abertura' in df.columns:
+        df = df.dropna(subset=['abertura'])
+        if data_inicio:
+            df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+        if data_fim:
+            fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+            df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        return 0
+
+    # 3. FILTRO INDISPONÍVEIS (Tem data de parada)
+    df = df.dropna(subset=['parada'])
+
+    # 4. FILTRO CRÍTICOS (Prioridade ALTA)
+    if 'prioridade' in df.columns:
+        df = df[df['prioridade'].str.upper().str.contains('ALTA', na=False)]
+
+    if df.empty:
+        return 0
+
+    # 5. Contagem Distinta de Tags
+    df = df.drop_duplicates(subset=['tag'])
+
+    return df.shape[0]
+
+
+def get_taxa_resolucao_corretivas_periodo_kpi(df_os, data_inicio=None, data_fim=None):
+    """
+    Calcula a % de OS Corretivas que foram Abertas E Fechadas dentro do mesmo período selecionado.
+    Fórmula: (OS Abertas e Fechadas no Periodo) / (Total OS Abertas no Periodo)
+    Filtros:
+      - Date Range: abertura
+      - Tipo: CORRETIVA
+      - MenosDuplicadas
+    """
+    if df_os.empty:
+        return 0
+
+    df = df_os.copy()
+
+    # 1. Conversão de Datas
+    for col in ['abertura', 'fechamento']:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors='coerce')
+
+    # 2. Filtro de Data (Ref: ABERTURA) - Define o Denominador
+    if 'abertura' in df.columns:
+        df = df.dropna(subset=['abertura'])
+        if data_inicio:
+            df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+        if data_fim:
+            # Garante o final do dia
+            fim_periodo = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+            df = df[df['abertura'] <= fim_periodo]
+    else:
+        return 0
+
+    if df.empty:
+        return 0
+
+    # 3. Filtro Tipo: CORRETIVA
+    if 'tipomanutencao' in df.columns:
+        df = df[df['tipomanutencao'].str.upper() == 'CORRETIVA']
+
+    # 4. MenosDuplicadas (Universo de OS únicas abertas)
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    total_abertas = df.shape[0]
+
+    if total_abertas == 0:
+        return 0
+
+    # 5. Numerador: Quantas dessas também fecharam dentro do prazo limite?
+    # A data de fechamento deve existir (não nula) e ser <= data_fim do filtro
+    # (Não precisa ser >= data_inicio pois logicamente não tem como fechar antes de abrir,
+    # e a abertura já é >= data_inicio)
+
+    if data_fim:
+        fim_periodo = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        resolvidas = df[
+            (df['fechamento'].notnull()) &
+            (df['fechamento'] <= fim_periodo)
+        ]
+    else:
+        # Se não tem data fim definida, considera todas as fechadas
+        resolvidas = df[df['fechamento'].notnull()]
+
+    total_resolvidas = resolvidas.shape[0]
+
+    # 6. Cálculo %
+    taxa = (total_resolvidas / total_abertas) * 100
+
+    return round(taxa, 2)
+
+
+def get_pendencias_corretiva_kpi(df_os, data_inicio=None, data_fim=None):
+    """
+    Calcula a média de pendências por equipamento afetado.
+    Fórmula: (Soma(Abertas) + Soma(Pendentes)) / CountDistinct(Tag)
+    Filtros:
+      - Date Range: abertura
+      - Tipo: CORRETIVA
+      - Situação: ABERTA ou PENDENTE
+      - MenosDuplicadas
+    """
+    if df_os.empty:
+        return 0
+
+    df = df_os.copy()
+
+    # 1. Conversão de Datas
+    if 'abertura' in df.columns:
+        df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+
+    # 2. Filtro de Data (Ref: ABERTURA)
+    if 'abertura' in df.columns:
+        df = df.dropna(subset=['abertura'])
+        if data_inicio:
+            df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+        if data_fim:
+            fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+            df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        return 0
+
+    # 3. Filtro Tipo: CORRETIVA
+    if 'tipomanutencao' in df.columns:
+        df = df[df['tipomanutencao'].str.upper() == 'CORRETIVA']
+
+    # 4. Filtro Situação (Numerador foca apenas nessas)
+    if 'situacao' in df.columns:
+        # Normaliza para garantir
+        status_pendentes = ['ABERTA', 'PENDENTE']
+        df = df[df['situacao'].str.upper().isin(status_pendentes)]
+
+    if df.empty:
+        return 0
+
+    # 5. MenosDuplicadas (OS Únicas)
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    # 6. Cálculo
+    # Numerador: Quantidade total de OSs que sobraram (que são abertas ou pendentes)
+    total_pendencias = df.shape[0]
+
+    # Denominador: Quantos equipamentos distintos estão nessa situação?
+    total_equipamentos_afetados = df['tag'].nunique()
+
+    if total_equipamentos_afetados == 0:
+        return 0
+
+    media_pendencias = total_pendencias / total_equipamentos_afetados
+
+    return round(media_pendencias, 2)
+
+
+def get_cumprimento_preventiva_kpi(df_os, data_inicio=None, data_fim=None):
+    """
+    Calcula o % de Cumprimento de Preventivas.
+    Fórmula: (Preventivas Fechadas / Total Preventivas Abertas) * 100
+    Filtros:
+      - Date Range: abertura
+      - Tipo: PREVENTIVA
+      - MenosDuplicadas
+    """
+    if df_os.empty:
+        return 0
+
+    df = df_os.copy()
+
+    # 1. Conversão de Datas (se ainda não foi feito)
+    if 'abertura' in df.columns:
+        df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+
+    # 2. Filtro de Data (Ref: ABERTURA - Define o Universo Planejado/Aberto no Mês)
+    if 'abertura' in df.columns:
+        df = df.dropna(subset=['abertura'])
+        if data_inicio:
+            df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+        if data_fim:
+            fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+            df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        return 0
+
+    # 3. Filtro Tipo: PREVENTIVA
+    if 'tipomanutencao' in df.columns:
+        df = df[df['tipomanutencao'].str.upper() == 'PREVENTIVA']
+
+    # 4. MenosDuplicadas (OS Únicas)
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    # Denominador: Total de Preventivas Abertas no período
+    total_preventivas = df.shape[0]
+
+    if total_preventivas == 0:
+        return 0
+
+    # 5. Numerador: Quantas dessas estão FECHADAS?
+    # Não importa se fechou hoje ou mês que vem (se a regra for apenas status "Fechada"),
+    # mas geralmente "Cumprimento" olha o status atual.
+    if 'situacao' in df.columns:
+        fechadas = df[df['situacao'].str.lower() == 'fechada']
+        total_fechadas = fechadas.shape[0]
+    else:
+        total_fechadas = 0
+
+    # 6. Cálculo %
+    taxa = (total_fechadas / total_preventivas) * 100
+
+    return round(taxa, 2)
+
+
+def get_cumprimento_calibracao_kpi(df_os, data_inicio=None, data_fim=None):
+    """
+    Calcula o % de Cumprimento de Calibração.
+    Fórmula: (Preventivas Fechadas / Total Calibração Abertas) * 100
+    Filtros:
+      - Date Range: abertura
+      - Tipo: CALIBRAÇÃO
+      - MenosDuplicadas
+    """
+    if df_os.empty:
+        return 0
+
+    df = df_os.copy()
+
+    # 1. Conversão de Datas (se ainda não foi feito)
+    if 'abertura' in df.columns:
+        df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+
+    # 2. Filtro de Data (Ref: ABERTURA - Define o Universo Planejado/Aberto no Mês)
+    if 'abertura' in df.columns:
+        df = df.dropna(subset=['abertura'])
+        if data_inicio:
+            df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+        if data_fim:
+            fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+            df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        return 0
+
+    # 3. Filtro Tipo: CALIBRAÇÃO
+    if 'tipomanutencao' in df.columns:
+        df = df[df['tipomanutencao'].str.upper() == 'CALIBRAÇÃO']
+
+    # 4. MenosDuplicadas (OS Únicas)
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    # Denominador: Total de Calibração Abertas no período
+    total_calibracao = df.shape[0]
+
+    if total_calibracao == 0:
+        return 0
+
+    # 5. Numerador: Quantas dessas estão FECHADAS?
+    # Não importa se fechou hoje ou mês que vem (se a regra for apenas status "Fechada"),
+    # mas geralmente "Cumprimento" olha o status atual.
+    if 'situacao' in df.columns:
+        fechadas = df[df['situacao'].str.lower() == 'fechada']
+        total_fechadas = fechadas.shape[0]
+    else:
+        total_fechadas = 0
+
+    # 6. Cálculo %
+    taxa = (total_fechadas / total_calibracao) * 100
+
+    return round(taxa, 2)
+
+
+def get_cumprimento_treinamento_kpi(df_os, data_inicio=None, data_fim=None):
+    """
+    Calcula o % de Cumprimento de Treinamento.
+    Fórmula: (Preventivas Fechadas / Total Treinamento Abertas) * 100
+    Filtros:
+      - Date Range: abertura
+      - Tipo: 'TREINAMENTO'
+      - MenosDuplicadas
+    """
+    if df_os.empty:
+        return 0
+
+    df = df_os.copy()
+
+    # 1. Conversão de Datas (se ainda não foi feito)
+    if 'abertura' in df.columns:
+        df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+
+    # 2. Filtro de Data (Ref: ABERTURA - Define o Universo Planejado/Aberto no Mês)
+    if 'abertura' in df.columns:
+        df = df.dropna(subset=['abertura'])
+        if data_inicio:
+            df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+        if data_fim:
+            fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+            df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        return 0
+
+    # 3. Filtro Tipo: TREINAMENTO
+    if 'tipomanutencao' in df.columns:
+        df = df[df['tipomanutencao'].str.upper() == 'TREINAMENTO']
+
+    # 4. MenosDuplicadas (OS Únicas)
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    # Denominador: Total de Treinamento Abertas no período
+    total_treinamento = df.shape[0]
+
+    if total_treinamento == 0:
+        return 0
+
+    # 5. Numerador: Quantas dessas estão FECHADAS?
+    # Não importa se fechou hoje ou mês que vem (se a regra for apenas status "Fechada"),
+    # mas geralmente "Cumprimento" olha o status atual.
+    if 'situacao' in df.columns:
+        fechadas = df[df['situacao'].str.lower() == 'fechada']
+        total_fechadas = fechadas.shape[0]
+    else:
+        total_fechadas = 0
+
+    # 6. Cálculo %
+    taxa = (total_fechadas / total_treinamento) * 100
+
+    return round(taxa, 2)
+
+
+def get_cumprimento_tse_kpi(df_os, data_inicio=None, data_fim=None):
+    """
+    Calcula o % de Cumprimento de TSE.
+    Fórmula: (Preventivas Fechadas / Total TSE Abertas) * 100
+    Filtros:
+      - Date Range: abertura
+      - Tipo: 'TREINAMENTO'
+      - MenosDuplicadas
+    """
+    if df_os.empty:
+        return 0
+
+    df = df_os.copy()
+
+    # 1. Conversão de Datas (se ainda não foi feito)
+    if 'abertura' in df.columns:
+        df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+
+    # 2. Filtro de Data (Ref: ABERTURA - Define o Universo Planejado/Aberto no Mês)
+    if 'abertura' in df.columns:
+        df = df.dropna(subset=['abertura'])
+        if data_inicio:
+            df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+        if data_fim:
+            fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+            df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        return 0
+
+    # 3. Filtro Tipo: TSE
+    if 'tipomanutencao' in df.columns:
+        df = df[df['tipomanutencao'].str.upper() == 'TESTE DE SEGURANÇA ELÉTRICA - TSE']
+
+    # 4. MenosDuplicadas (OS Únicas)
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    # Denominador: Total de TSE Abertas no período
+    total_tse = df.shape[0]
+
+    if total_tse == 0:
+        return 0
+
+    # 5. Numerador: Quantas dessas estão FECHADAS?
+    # Não importa se fechou hoje ou mês que vem (se a regra for apenas status "Fechada"),
+    # mas geralmente "Cumprimento" olha o status atual.
+    if 'situacao' in df.columns:
+        fechadas = df[df['situacao'].str.lower() == 'fechada']
+        total_fechadas = fechadas.shape[0]
+    else:
+        total_fechadas = 0
+
+    # 6. Cálculo %
+    taxa = (total_fechadas / total_tse) * 100
+
+    return round(taxa, 2)
+
+
+def get_qtde_reparos_imediato_kpi(df_os, data_inicio=None, data_fim=None):
+    """
+    Retorna a quantidade de Reparos realizados em menos de 1 minuto (Imediatos).
+    Filtros:
+      - Date Range: abertura
+      - Tipo: CORRETIVA
+      - TempoReparo: (Fechamento - Abertura) < 60 segundos
+      - MenosDuplicadas
+    """
+    if df_os.empty:
+        return 0
+
+    df = df_os.copy()
+
+    # 1. Conversão de Datas
+    for col in ['abertura', 'fechamento']:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors='coerce')
+
+    # 2. Filtro de Data (Ref: ABERTURA)
+    if 'abertura' in df.columns:
+        df = df.dropna(subset=['abertura'])
+        if data_inicio:
+            df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
+        if data_fim:
+            fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+            df = df[df['abertura'] <= fim]
+
+    if df.empty:
+        return 0
+
+    # 3. Filtro Tipo: CORRETIVA
+    if 'tipomanutencao' in df.columns:
+        df = df[df['tipomanutencao'].str.upper() == 'CORRETIVA']
+
+    # 4. Filtro Tempo de Reparo OK (IMEDIATO < 1 min)
+    # Garante que tem fechamento
+    df = df.dropna(subset=['fechamento'])
+
+    # Calcula duração em segundos
+    df['duracao_segundos'] = (df['fechamento'] - df['abertura']).dt.total_seconds()
+
+    # Aplica a regra: Menor que 60 segundos (e não negativo)
+    df = df[(df['duracao_segundos'] < 60) & (df['duracao_segundos'] >= 0)]
+
+    if df.empty:
+        return 0
+
+    # 5. MenosDuplicadas (Conta OSs únicas)
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    return df.shape[0]
+
+
+def get_os_corretivas_ultimos_3_anos_por_familia(df_os, df_equip):
+    """
+    Retorna uma lista de dicionários com o total de Corretivas por Família (Top 20).
+    Considera apenas OSs abertas nos últimos 3 anos (36 meses) para os equipamentos filtrados.
+    """
+    if df_os.empty or df_equip.empty:
+        return []
+
+    # 1. Preparar Equipamentos (Já vêm filtrados por Cadastro da View)
+    # Precisamos apenas de Tag e Família
+    df_e = df_equip.copy()
+    if 'tag' not in df_e.columns or 'familia' not in df_e.columns:
+        return []
+
+    # Limpeza básica
+    df_e = df_e.dropna(subset=['tag', 'familia'])
+    df_e = df_e[df_e['familia'] != '']
+    # Garante tags únicas no cadastro (se houver duplicidade, pega a primeira)
+    df_e = df_e.drop_duplicates(subset=['tag'])
+
+    # 2. Preparar OS (Filtro "Últimos 3 Anos")
+    df_o = df_os.copy()
+
+    # Conversão de data
+    if 'abertura' in df_o.columns:
+        df_o['abertura'] = pd.to_datetime(df_o['abertura'], errors='coerce')
+    else:
+        return []
+
+    # Filtro Temporal: Últimos 3 Anos (baseado em HOJE)
+    hoje = pd.Timestamp.now()
+    tres_anos_atras = hoje - pd.DateOffset(years=3)
+
+    df_o = df_o[df_o['abertura'] >= tres_anos_atras]
+
+    if df_o.empty:
+        return []
+
+    # Filtro Tipo: CORRETIVA
+    if 'tipomanutencao' in df_o.columns:
+        df_o = df_o[df_o['tipomanutencao'].str.upper() == 'CORRETIVA']
+
+    # Filtro MenosDuplicadas
+    df_o = df_o.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    # 3. Cruzamento (Merge)
+    # Inner Join: Só queremos OSs de equipamentos que estão no filtro de cadastro atual
+    df_merged = pd.merge(df_o, df_e[['tag', 'familia']], on='tag', how='inner')
+
+    if df_merged.empty:
+        return []
+
+    # 4. Agrupamento por Família
+    # Conta quantidade de OSs (usando a coluna 'os' ou qualquer outra não nula)
+    agrupado = df_merged.groupby('familia')['os'].count().reset_index()
+    agrupado.columns = ['familia', 'qtd_corretivas']
+
+    # Ordenar Decrescente
+    agrupado = agrupado.sort_values(by='qtd_corretivas', ascending=False)
+
+    # Retorna Top N (ex: 20) ou tudo, formato lista de dicts para o template
+    return agrupado.head(20).to_dict('records')

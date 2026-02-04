@@ -34,6 +34,7 @@ from .services.indicadores.indicadores_dashboards import (
     get_maiores_causas_corretivas,
     get_mtbf_medio_kpi,
     get_mttr_kpi,
+    get_qtde_reparos_imediato_kpi,
     get_tempo_medio_primeiro_atendimento_kpi,
     get_tempo_mediano_primeiro_atendimento_kpi,
     get_tempo_medio_primeiro_atendimento_critico_kpi,
@@ -41,6 +42,16 @@ from .services.indicadores.indicadores_dashboards import (
     get_tempo_medio_equipamento_critico_parado_kpi,
     get_tempo_mediano_equipamento_critico_parado_kpi,
     get_taxa_disponibilidade_kpi,
+    get_taxa_disponibilidade_criticos_kpi,
+    get_qtde_equipamentos_indisponiveis_kpi,
+    get_qtde_equipamentos_criticos_indisponiveis_kpi,
+    get_taxa_resolucao_corretivas_periodo_kpi,
+    get_pendencias_corretiva_kpi,
+    get_cumprimento_preventiva_kpi,
+    get_cumprimento_calibracao_kpi,
+    get_cumprimento_treinamento_kpi,
+    get_cumprimento_tse_kpi,
+    get_os_corretivas_ultimos_3_anos_por_familia,
 )
 
 
@@ -87,10 +98,7 @@ def engenharia_clinica_graficos(request):
 
     # --- A. Carregar Dados de OS (ConsultaOs) ---
     # Filtramos por data diretamente no banco para trazer apenas o necessário (Performance)
-    filtros_os = {
-        'abertura__gte': data_inicio,
-        'abertura__lte': f"{data_fim} 23:59:59"  # Garante o dia todo
-    }
+    filtros_os = {}
     if empresa:
         filtros_os['empresa'] = empresa
 
@@ -345,6 +353,7 @@ def engenharia_clinica_indicadores(request):
     kpi_mtbf = get_mtbf_medio_kpi(df_equip)
 
     kpi_mttr = get_mttr_kpi(df_os, data_inicio, data_fim)
+    kpi_reparos_imediato = get_qtde_reparos_imediato_kpi(df_os, data_inicio, data_fim)
     kpi_tma = get_tempo_medio_primeiro_atendimento_kpi(df_os, data_inicio, data_fim)
     kpi_tma_mediana = get_tempo_mediano_primeiro_atendimento_kpi(df_os, data_inicio, data_fim)
     kpi_tma_critico = get_tempo_medio_primeiro_atendimento_critico_kpi(df_os, data_inicio, data_fim)
@@ -352,6 +361,16 @@ def engenharia_clinica_indicadores(request):
     kpi_tma_equipamento_critico_parado = get_tempo_medio_equipamento_critico_parado_kpi(df_os, data_inicio, data_fim)
     kpi_tma_equipamento_critico_parado_mediana = get_tempo_mediano_equipamento_critico_parado_kpi(df_os, data_inicio, data_fim)
     kpi_taxa_disponibilidade = get_taxa_disponibilidade_kpi(df_os, df_equip, data_inicio, data_fim)
+    kpi_taxa_disponibilidade_criticos = get_taxa_disponibilidade_criticos_kpi(df_os, df_equip, data_inicio, data_fim)
+    kpi_equip_indisponiveis = get_qtde_equipamentos_indisponiveis_kpi(df_os, data_inicio, data_fim)
+    kpi_equip_criticos_indisponiveis = get_qtde_equipamentos_criticos_indisponiveis_kpi(df_os, data_inicio, data_fim)
+    kpi_resolucao_corretivas = get_taxa_resolucao_corretivas_periodo_kpi(df_os, data_inicio, data_fim)
+    kpi_pendencias_corretiva = get_pendencias_corretiva_kpi(df_os, data_inicio, data_fim)
+    kpi_cumprimento_preventiva = get_cumprimento_preventiva_kpi(df_os, data_inicio, data_fim)
+    kpi_cumprimento_calibracao = get_cumprimento_calibracao_kpi(df_os, data_inicio, data_fim)
+    kpi_cumprimento_treinamento = get_cumprimento_treinamento_kpi(df_os, data_inicio, data_fim)
+    kpi_cumprimento_tse = get_cumprimento_tse_kpi(df_os, data_inicio, data_fim)
+    tabela_corretivas_familia = get_os_corretivas_ultimos_3_anos_por_familia(df_os, df_equip)
 
     context = {
         'form': form,
@@ -364,6 +383,7 @@ def engenharia_clinica_indicadores(request):
         'maiores_causas_corretivas': maiores_causas_corretivas,
         'kpi_mtbf': kpi_mtbf,
         'kpi_mttr': kpi_mttr,
+        'kpi_reparos_imediato': kpi_reparos_imediato,
         'kpi_tma': kpi_tma,
         'kpi_tma_mediana': kpi_tma_mediana,
         'kpi_tma_critico': kpi_tma_critico,
@@ -371,7 +391,15 @@ def engenharia_clinica_indicadores(request):
         'kpi_tma_equipamento_critico_parado': kpi_tma_equipamento_critico_parado,
         'kpi_tma_equipamento_critico_parado_mediana': kpi_tma_equipamento_critico_parado_mediana,
         'kpi_taxa_disponibilidade': kpi_taxa_disponibilidade,
-
-
+        'kpi_taxa_disponibilidade_criticos': kpi_taxa_disponibilidade_criticos,
+        'kpi_equip_indisponiveis': kpi_equip_indisponiveis,
+        'kpi_equip_criticos_indisponiveis': kpi_equip_criticos_indisponiveis,
+        'kpi_resolucao_corretivas': kpi_resolucao_corretivas,
+        'kpi_pendencias_corretiva': kpi_pendencias_corretiva,
+        'kpi_cumprimento_preventiva': kpi_cumprimento_preventiva,
+        'kpi_cumprimento_calibracao': kpi_cumprimento_calibracao,
+        'kpi_cumprimento_treinamento': kpi_cumprimento_treinamento,
+        'kpi_cumprimento_tse': kpi_cumprimento_tse,
+        'tabela_corretivas_familia': tabela_corretivas_familia,
     }
     return render(request, 'engenharia/indicadores.html', context)
