@@ -415,96 +415,97 @@ def get_os_taxa_conclusao_planejamento(data_inicio=None, data_fim=None, empresa=
 
 def get_taxa_disponibilidade_equipamentos(data_inicio=None, data_fim=None, empresa=None):
     """
-    Calcula a Disponibilidade Geral Dinâmica.
-    Inventário = Contagem distinta de TAGs por empresa no banco todo (ou filtrado).
-    Fórmula: (Total Horas Possíveis - Horas Parado) / Total Horas Possíveis
+    Disponibilidade Geral (%):
+    (TotalHorasPossiveis - Downtime) / TotalHorasPossiveis * 100
+
+    TotalHorasPossiveis = 24 * dias_periodo * qtd_equipamentos
+    qtd_equipamentos = COUNT DISTINCT tag em ConsultaEquipamentos (parque)
+    Downtime = SUM( (fechamento - abertura) em horas ) para OS fechadas no período
+              com MENOS DUPLICADOS em (os, tag, local_api)
     """
 
-    # === PASSO 1: Descobrir o Inventário Dinamicamente ===
-    # Contamos quantas TAGs únicas existem para cada empresa.
-    # OBS: Usamos .all() para pegar o inventário TOTAL, independente se quebrou este mês ou não.
-    # Se quiser considerar apenas equipamentos ativos recentemente, precisaria de uma regra de data aqui.
-    qs_inventario = ConsultaOs.objects.values('empresa').annotate(
-        qtd_equipamentos=Count('tag', distinct=True)
-    ).filter(
-        tag__isnull=False
-    ).exclude(tag='')  # Garante que não conta tags vazias
-
-    if empresa:
-        qs_inventario = qs_inventario.filter(empresa=empresa)
-
-    # Transforma em dicionário para acesso rápido: {'HUGOL': 3484, 'CRER': 2081...}
-    inventario_dict = {
-        item['empresa']: item['qtd_equipamentos']
-        for item in qs_inventario
-        if item['empresa']  # Ignora empresa None/Vazia
-    }
-
-    # Se não achou nenhum equipamento, retorna vazio
-    if not inventario_dict:
-        return [], []
-
-    # === PASSO 2: Definição do Período (Dias) ===
+    # 1) Período (dias) — igual ideia do Looker: min/max do filtro (inclusivo)
     if data_inicio and data_fim:
         dt_ini = pd.to_datetime(data_inicio)
         dt_fim = pd.to_datetime(data_fim)
         dias_periodo = (dt_fim - dt_ini).days + 1
+        dt_fim_filter = dt_fim.replace(hour=23, minute=59, second=59)
     else:
-        dias_periodo = 30  # Default
+        dias_periodo = 30
+        dt_ini = None
+        dt_fim_filter = None
 
-    # === PASSO 3: Busca de Dados de "TempoParaResolver" (Downtime) ===
-    # Busca OS fechadas no período para calcular quanto tempo ficou parado
-    queryset = ConsultaOs.objects.filter(
-        situacao__iexact='Fechada',
-        fechamento__isnull=False,
-        abertura__isnull=False
-    ).values('empresa', 'abertura', 'fechamento')
+    # 2) Inventário REAL pelo cadastro de equipamentos
+    qs_inv = ConsultaEquipamentos.objects.values('empresa').annotate(
+        qtd_equipamentos=Count('tag', distinct=True)
+    ).filter(tag__isnull=False).exclude(tag='')
 
-    if data_inicio:
-        queryset = queryset.filter(abertura__gte=data_inicio)
-    if data_fim:
-        queryset = queryset.filter(abertura__lte=f"{data_fim} 23:59:59")
     if empresa:
-        queryset = queryset.filter(empresa=empresa)
+        qs_inv = qs_inv.filter(empresa=empresa)
 
-    df = pd.DataFrame(list(queryset))
+    inventario_dict = {
+        item['empresa']: item['qtd_equipamentos']
+        for item in qs_inv
+        if item['empresa']
+    }
 
-    # === PASSO 4: Cálculo Final ===
+    if not inventario_dict:
+        return [], []
+
+    # 3) Downtime (OS fechadas) — filtrando por ABERTURA como no seu Looker
+    qs_os = ConsultaOs.objects.filter(
+        situacao__iexact='Fechada',
+        abertura__isnull=False,
+        fechamento__isnull=False,
+    ).values('empresa', 'os', 'tag', 'local_api', 'abertura', 'fechamento')
+
+    if empresa:
+        qs_os = qs_os.filter(empresa=empresa)
+
+    df = pd.DataFrame(list(qs_os))
+    if df.empty:
+        # Sem OS fechada no período => downtime 0 => disponibilidade 100%
+        labels = list(inventario_dict.keys())
+        valores = [100.0 for _ in labels]
+        return labels, valores
+
+    df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+    df['fechamento'] = pd.to_datetime(df['fechamento'], errors='coerce')
+    df = df.dropna(subset=['abertura', 'fechamento'])
+
+    if dt_ini is not None:
+        df = df[df['abertura'] >= dt_ini]
+    if dt_fim_filter is not None:
+        df = df[df['abertura'] <= dt_fim_filter]
+
+    if df.empty:
+        labels = list(inventario_dict.keys())
+        valores = [100.0 for _ in labels]
+        return labels, valores
+
+    # MENOS DUPLICADOS (vital para bater com seu filtro do Looker)
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+
+    # duração em horas
+    df['duracao_h'] = (df['fechamento'] - df['abertura']).dt.total_seconds() / 3600
+    df = df[df['duracao_h'] >= 0]
+
+    downtime_por_empresa = df.groupby('empresa')['duracao_h'].sum().to_dict()
+
+    # 4) Taxa final
     labels = []
     valores = []
 
-    # Itera sobre as empresas encontradas no inventário dinâmico
-    for nome_empresa, qtd_equipamentos in inventario_dict.items():
+    for emp, qtd_equip in inventario_dict.items():
+        horas_potenciais = 24 * dias_periodo * qtd_equip
+        horas_parado = downtime_por_empresa.get(emp, 0)
 
-        # 4.1. Total Potencial (24h * Dias * Qtd Equipamentos REAIS do Banco)
-        horas_potenciais = 24 * dias_periodo * qtd_equipamentos
-
-        # 4.2. Horas Parado (Downtime)
-        horas_parado = 0
-
-        if not df.empty:
-            # Filtra o DF para pegar apenas as OS dessa empresa
-            df_unidade = df[df['empresa'] == nome_empresa].copy()
-
-            if not df_unidade.empty:
-                df_unidade['abertura'] = pd.to_datetime(df_unidade['abertura'])
-                df_unidade['fechamento'] = pd.to_datetime(df_unidade['fechamento'])
-
-                # Calcula duração em horas
-                df_unidade['duracao_segundos'] = (df_unidade['fechamento'] - df_unidade['abertura']).dt.total_seconds()
-                # Remove inconsistências (tempos negativos)
-                df_unidade = df_unidade[df_unidade['duracao_segundos'] >= 0]
-
-                horas_parado = df_unidade['duracao_segundos'].sum() / 3600
-
-        # 4.3. Taxa
         if horas_potenciais > 0:
-            taxa = (horas_potenciais - horas_parado) / horas_potenciais
-            taxa = taxa * 100
+            taxa = ((horas_potenciais - horas_parado) / horas_potenciais) * 100
         else:
             taxa = 0
 
-        labels.append(nome_empresa)
+        labels.append(emp)
         valores.append(round(taxa, 2))
 
     return labels, valores
@@ -974,7 +975,7 @@ def get_matriz_indisponibilidade_criticos(data_inicio=None, data_fim=None, empre
     # 1. Busca os dados
     queryset = ConsultaOs.objects.filter(
         prioridade__icontains='ALTA',
-        abertura__isnull=False
+        abertura__isnull=False,
     ).values('os', 'tag', 'local_api', 'abertura', 'empresa')
 
     if empresa:
@@ -1008,7 +1009,8 @@ def get_matriz_indisponibilidade_criticos(data_inicio=None, data_fim=None, empre
         return matriz_vazia()
 
     # 3. MenosDuplicadas
-    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
+    df = df.sort_values(['os', 'tag', 'local_api', 'abertura'], ascending=[True, True, True, False])
+    df = df.drop_duplicates(subset=['os', 'tag', 'local_api'], keep='first')
 
     # 4. Prepara colunas para agrupamento
     df['hora'] = df['abertura'].dt.hour
@@ -1026,14 +1028,13 @@ def get_matriz_indisponibilidade_criticos(data_inicio=None, data_fim=None, empre
         for d_int in range(7):
             # Filtra pelo dia da semana dentro daquela hora
             df_slice = df_hora[df_hora['dia_semana_int'] == d_int]
-
-            total = len(df_slice)
+            total = df_slice['os'].nunique()
             tooltip_str = ""
 
             if total > 0:
                 # Conta quantas OS cada empresa teve nesse horário específico
                 # Ex: HUGOL: 2, CRER: 1
-                contagem_empresas = df_slice['empresa'].value_counts()
+                contagem_empresas = df_slice.groupby('empresa')['os'].nunique().sort_values(ascending=False)
 
                 # Monta string HTML para o Tooltip: "<b>HUGOL</b>: 2<br><b>CRER</b>: 1"
                 lista_detalhes = []
@@ -1060,36 +1061,20 @@ def get_matriz_indisponibilidade_criticos(data_inicio=None, data_fim=None, empre
 
 def get_taxa_disponibilidade_equipamentos_criticos(data_inicio=None, data_fim=None, empresa=None):
     """
-    Calcula a Disponibilidade (%) APENAS para Equipamentos Críticos (Prioridade = ALTA).
-    Fórmula: ( (24h * Dias * Qtd_Equip_Criticos) - SUM(TempoParaResolver) ) / (24h * Dias * Qtd_Equip_Criticos)
-    TempoParaResolver = Fechamento - Abertura.
+    Disponibilidade (%) APENAS para Equipamentos Críticos (Prioridade = ALTA).
+
+    Regra ajustada (correta para disponibilidade):
+      - Inventário crítico = histórico (tags distintas que já tiveram prioridade ALTA)
+      - Downtime = OS fechada + prioridade ALTA, filtrada por abertura no período
+      - MenosDuplicadas = (os, tag, local_api)
+
+    Fórmula:
+      ((24 * dias * qtd_equip_criticos) - SUM(TempoParaResolver)) / (24 * dias * qtd_equip_criticos) * 100
     """
 
-    # === 1. DEFINIR O UNIVERSO DE EQUIPAMENTOS CRÍTICOS (Inventário) ===
-    # Contamos quantas TAGs únicas já tiveram OS com prioridade ALTA na história (ou no período).
-    # Assumimos que se o equipamento tem OS Crítica, ele é um Equipamento Crítico.
-    qs_inventario = ConsultaOs.objects.filter(
-        prioridade__icontains='ALTA',  # Filtro de Criticidade
-        tag__isnull=False
-    ).exclude(tag='').values('empresa', 'tag')
-
-    if empresa:
-        qs_inventario = qs_inventario.filter(empresa=empresa)
-
-    df_inv = pd.DataFrame(list(qs_inventario))
-
-    if df_inv.empty:
-        return [], []
-
-    # Conta equipamentos únicos por empresa (Inventário Crítico)
-    # Ex: {'HUGOL': 50, 'CRER': 20}
-    inventario_por_empresa = df_inv.groupby('empresa')['tag'].nunique().to_dict()
-
-    # === 2. DEFINIR O PERÍODO (Dias) ===
     if data_inicio and data_fim:
         dt_ini = pd.to_datetime(data_inicio)
         dt_fim = pd.to_datetime(data_fim)
-        # Força final do dia para garantir o cálculo correto de dias
         dt_fim_filter = dt_fim.replace(hour=23, minute=59, second=59)
         dias_periodo = (dt_fim - dt_ini).days + 1
     else:
@@ -1097,8 +1082,22 @@ def get_taxa_disponibilidade_equipamentos_criticos(data_inicio=None, data_fim=No
         dt_ini = None
         dt_fim_filter = None
 
-    # === 3. CALCULAR TEMPO PARA RESOLVER (Downtime) ===
-    # Busca OSs Críticas Fechadas no período
+    # 1) Inventário crítico HISTÓRICO (SEM filtro de data)
+    qs_inv = ConsultaOs.objects.filter(
+        prioridade__icontains='ALTA',
+        tag__isnull=False
+    ).exclude(tag='').values('empresa', 'tag')
+
+    if empresa:
+        qs_inv = qs_inv.filter(empresa=empresa)
+
+    df_inv = pd.DataFrame(list(qs_inv))
+    if df_inv.empty:
+        return [], []
+
+    inventario_por_empresa = df_inv.groupby('empresa')['tag'].nunique().to_dict()
+
+    # 2) Downtime (OS críticas fechadas no período por abertura)
     qs_os = ConsultaOs.objects.filter(
         prioridade__icontains='ALTA',
         situacao__iexact='Fechada',
@@ -1113,109 +1112,125 @@ def get_taxa_disponibilidade_equipamentos_criticos(data_inicio=None, data_fim=No
     downtime_por_empresa = {}
 
     if not df_os.empty:
-        # Tratamento de Datas
         df_os['abertura'] = pd.to_datetime(df_os['abertura'], errors='coerce')
         df_os['fechamento'] = pd.to_datetime(df_os['fechamento'], errors='coerce')
+        df_os = df_os.dropna(subset=['abertura', 'fechamento'])
 
-        # Filtro de Data Range (Baseado na ABERTURA conforme pedido)
-        if dt_ini:
+        if dt_ini is not None:
             df_os = df_os[df_os['abertura'] >= dt_ini]
-        if dt_fim_filter:
+        if dt_fim_filter is not None:
             df_os = df_os[df_os['abertura'] <= dt_fim_filter]
 
-        # === BLINDAGEM: MENOS DUPLICADAS ===
         df_os = df_os.drop_duplicates(subset=['os', 'tag', 'local_api'])
 
-        # Cálculo do Tempo (Horas)
-        df_os['tempo_resolver'] = (df_os['fechamento'] - df_os['abertura']).dt.total_seconds() / 3600
+        df_os['tempo_resolver'] = (df_os['fechamento'] - df_os['abertura']).dt.total_seconds() / 3600.0
+        df_os = df_os[df_os['tempo_resolver'] >= 0]
 
-        # Remove inconsistências (tempos negativos)
-        df_os = df_os[df_os['tempo_resolver'] > 0]
-
-        # Soma do tempo parado por empresa
         downtime_por_empresa = df_os.groupby('empresa')['tempo_resolver'].sum().to_dict()
 
-    # === 4. CÁLCULO FINAL DA TAXA ===
-    labels = []
-    valores = []
+    # 3) Taxa
+    labels, valores = [], []
 
-    # Itera sobre as empresas que têm inventário crítico
-    for nome_empresa, qtd_equipamentos in inventario_por_empresa.items():
+    for emp, qtd_equip in inventario_por_empresa.items():
+        horas_potenciais = 24.0 * dias_periodo * qtd_equip
+        horas_parado = float(downtime_por_empresa.get(emp, 0))
 
-        # A. Total de Horas Possíveis (24h * Dias * Qtd Equipamentos)
-        horas_potenciais = 24 * dias_periodo * qtd_equipamentos
+        taxa_bruta = ((horas_potenciais - horas_parado) / horas_potenciais) * 100 if horas_potenciais > 0 else 0.0
 
-        # B. Total de Horas Parado (Downtime)
-        horas_parado = downtime_por_empresa.get(nome_empresa, 0)
+        if horas_parado > horas_potenciais:
+            print(
+                f"[ALERTA] {emp} downtime>potencial | "
+                f"parado={horas_parado:.2f}h potencial={horas_potenciais:.2f}h "
+                f"inventario={qtd_equip} dias={dias_periodo} taxa_bruta={taxa_bruta:.2f}%"
+            )
 
-        # C. Fórmula
-        if horas_potenciais > 0:
-            taxa = (horas_potenciais - horas_parado) / horas_potenciais
-            taxa = taxa * 100  # Porcentagem
-        else:
-            taxa = 0
+        # clamp BI-safe
+        taxa = max(0.0, min(100.0, taxa_bruta))
 
-        labels.append(nome_empresa)
+        labels.append(emp)
         valores.append(round(taxa, 2))
 
     return labels, valores
 
 
-def get_qtde_equipamentos_criticos_por_unidade(data_inicio=None, data_fim=None, empresa=None):
+def get_qtde_equipamentos_criticos_por_unidade(df_os, df_equip, data_inicio, data_fim, empresa=None):
     """
-    Retorna a quantidade de Equipamentos Críticos cuja GARANTIA vence no período.
+    Retorna a quantidade de equipamentos CRÍTICOS que foram INSTALADOS no período selecionado,
+    agrupados por Unidade (Empresa).
+
     Lógica:
-      1. Identifica Tags Críticas (OS com Prioridade ALTA).
-      2. Busca essas Tags na tabela de Equipamentos.
-      3. Filtra pela Data de instalacao.
+      1. Identifica tags críticas (baseado no histórico de OS com prioridade ALTA).
+      2. Filtra equipamentos pela data de INSTALAÇÃO (data_inicio <= instalacao <= data_fim).
+      3. Cruza os dados: Mantém apenas os equipamentos instalados que são críticos.
     """
-
-    # 1. Identificar Tags Críticas (Subquery na ConsultaOs)
-    # Consideramos "Crítico" qualquer equipamento que tenha tido pelo menos uma OS de Prioridade Alta
-    tags_criticas = ConsultaOs.objects.filter(
-        prioridade__icontains='ALTA',
-        tag__isnull=False
-    ).exclude(tag='').values_list('tag', flat=True).distinct()
-
-    # 2. Busca na Tabela de Equipamentos (Usando as tags críticas)
-    queryset = ConsultaEquipamentos.objects.filter(
-        tag__in=tags_criticas,
-        tag__isnull=False
-    ).exclude(tag='').values('empresa', 'tag', 'instalacao')
-
-    if empresa:
-        queryset = queryset.filter(empresa=empresa)
-
-    df = pd.DataFrame(list(queryset))
-
-    if df.empty:
+    if df_os.empty or df_equip.empty:
         return [], []
 
-    # 3. Tratamento de Data (Filtro: instalacao)
-    df['instalacao'] = pd.to_datetime(df['instalacao'], errors='coerce')
+    # ---------------------------------------------------------
+    # 1. Identificar Tags Críticas (Universo Global)
+    # ---------------------------------------------------------
+    # Olhamos para o df_os completo para saber quais equipamentos são críticos.
+    # Não filtramos a OS por data aqui, pois a criticidade é uma característica do equipamento.
+    df_o = df_os.copy()
 
-    # Remove equipamentos sem data de instalacao válida (se o filtro de data for obrigatório)
-    if data_inicio or data_fim:
-        df.dropna(subset=['instalacao'], inplace=True)
+    tags_criticas = []
+    if 'prioridade' in df_o.columns and 'tag' in df_o.columns:
+        # Busca tags onde a prioridade contém 'ALTA' (case insensitive)
+        tags_criticas = df_o[
+            df_o['prioridade'].str.upper().str.contains('ALTA', na=False)
+        ]['tag'].unique()
 
+    if len(tags_criticas) == 0:
+        return [], []
+
+    # ---------------------------------------------------------
+    # 2. Filtrar Equipamentos por DATA DE INSTALAÇÃO
+    # ---------------------------------------------------------
+    df_e = df_equip.copy()
+
+    if 'instalacao' not in df_e.columns:
+        return [], []
+
+    # Converte para data
+    df_e['instalacao'] = pd.to_datetime(df_e['instalacao'], errors='coerce')
+
+    # Remove quem não tem data de instalação (opcional, mas recomendado para consistência)
+    df_e = df_e.dropna(subset=['instalacao'])
+
+    # Aplica o Filtro de Data
     if data_inicio:
-        df = df[df['instalacao'] >= pd.to_datetime(data_inicio)]
-    if data_fim:
-        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
-        df = df[df['instalacao'] <= fim]
+        df_e = df_e[df_e['instalacao'] >= pd.to_datetime(data_inicio)]
 
-    if df.empty:
+    if data_fim:
+        # Garante o final do dia para a data fim
+        fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
+        df_e = df_e[df_e['instalacao'] <= fim]
+
+    # Filtro de Empresa (se o usuário selecionou uma específica)
+    if empresa and 'empresa' in df_e.columns:
+        df_e = df_e[df_e['empresa'] == empresa]
+
+    if df_e.empty:
         return [], []
 
-    # 4. Contagem Única (MenosDuplicadas)
-    # Se houver duplicidade de cadastro do mesmo equipamento, o nunique resolve
-    df_agrupado = df.groupby('empresa')['tag'].nunique().reset_index()
-    df_agrupado.columns = ['empresa', 'qtd']
+    # ---------------------------------------------------------
+    # 3. Cruzamento e Contagem
+    # ---------------------------------------------------------
+    # Mantém apenas os equipamentos do período (df_e) que estão na lista de críticos
+    df_criticos_novos = df_e[df_e['tag'].isin(tags_criticas)]
 
-    # 5. Ordenação
-    df_agrupado = df_agrupado.sort_values(by='qtd', ascending=False)
+    if df_criticos_novos.empty:
+        return [], []
 
-    return df_agrupado['empresa'].tolist(), df_agrupado['qtd'].tolist()
+    # Agrupa por Empresa e Conta
+    if 'empresa' in df_criticos_novos.columns:
+        agrupado = df_criticos_novos['empresa'].value_counts().reset_index()
+        agrupado.columns = ['empresa', 'qtd']
+
+        # Retorna listas para o Chart.js / ApexCharts
+        return agrupado['empresa'].tolist(), agrupado['qtd'].tolist()
+
+    return [], []
 
 
 def get_tempo_primeiro_atendimento_critico(data_inicio=None, data_fim=None, empresa=None):

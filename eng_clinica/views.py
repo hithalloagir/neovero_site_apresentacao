@@ -294,6 +294,8 @@ def engenharia_clinica_graficos(request):
 
     # Chama o Serviço do Gráfico Quantidade de Equipamentos Criticos por Unidade
     labels_equipamentos_criticos_por_unidade, data_equipamentos_criticos_por_unidade = get_qtde_equipamentos_criticos_por_unidade(
+        df_os=df_os,
+        df_equip=df_equip,
         data_inicio=data_inicio,
         data_fim=data_fim,
         empresa=empresa
