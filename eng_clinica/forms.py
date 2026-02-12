@@ -1,5 +1,5 @@
 from django import forms
-from .models import ConsultaOs
+from .models import ConsultaOsNew
 
 
 class GraficoFilterForm(forms.Form):
@@ -17,7 +17,7 @@ class GraficoFilterForm(forms.Form):
 
     # Campo para selecionar Empresa
     empresa = forms.ModelChoiceField(
-        queryset=ConsultaOs.objects.values_list('empresa', flat=True).distinct(),
+        queryset=ConsultaOsNew.objects.values_list('empresa', flat=True).distinct(),
         empty_label="Todas as Empresas",
         required=False,
         to_field_name="empresa",
@@ -26,6 +26,6 @@ class GraficoFilterForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        empresas = ConsultaOs.objects.values_list('empresa', flat=True).distinct().order_by('empresa')
+        empresas = ConsultaOsNew.objects.values_list('empresa', flat=True).distinct().order_by('empresa')
         choices = [('', 'Todas as Empresas')] + [(emp, emp) for emp in empresas if emp]
         self.fields['empresa'] = forms.ChoiceField(choices=choices, required=False, widget=forms.Select(attrs={'class': 'form-select'}))

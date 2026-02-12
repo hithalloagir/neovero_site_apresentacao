@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 from django.db.models import Count
-from ...models import ConsultaOs
 
 
 def get_total_equipamentos_cadastrados(df_equip, data_inicio=None, data_fim=None):
@@ -154,24 +153,30 @@ def get_maiores_causas_corretivas(df_os, data_inicio=None, data_fim=None):
     return []
 
 
-def get_mtbf_medio_kpi(df_equip):
+def get_mtbf_medio_kpi(df_equip, df_os):
     """
-    Calcula o MTBF Médio em ANOS.
+    Calcula o MTBF Médio em ANOS usando apenas Pandas.
+    Fórmula: Idade do Equipamento / Quantidade de Falhas (Corretivas)
     """
     if df_equip.empty:
         return 0
 
+    # 1. Obter lista de tags do DF de equipamentos
     tags = df_equip['tag'].dropna().unique().tolist()
     if not tags:
         return 0
 
-    # Busca falhas (Total histórico)
-    qs_falhas = ConsultaOs.objects.filter(
-        tag__in=tags,
-        tipomanutencao__iexact='CORRETIVA'
-    ).values('tag').annotate(qtd=Count('pk'))
-
-    dict_falhas = {x['tag']: x['qtd'] for x in qs_falhas}
+    # 2. Contar falhas usando df_os (SUBSTITUI A QUERY AO BANCO)
+    dict_falhas = {}
+    if not df_os.empty:
+        # Filtra Corretivas e Tags relevantes
+        df_falhas = df_os[
+            (df_os['tipomanutencao'].str.upper() == 'CORRETIVA') &
+            (df_os['tag'].isin(tags))
+        ]
+        # Conta ocorrências por tag
+        if not df_falhas.empty:
+            dict_falhas = df_falhas['tag'].value_counts().to_dict()
 
     mtbf_values = []
     agora = pd.Timestamp.now()
@@ -183,13 +188,13 @@ def get_mtbf_medio_kpi(df_equip):
         if pd.isnull(data_ref):
             continue
 
-        # --- MUDANÇA AQUI: Cálculo em ANOS ---
-        # Dias / 365.25
+        # Cálculo da Idade em Anos
         idade_anos = (agora - data_ref).days / 365.25
 
         if idade_anos < 0:
             idade_anos = 0
 
+        # Pega qtd de falhas do dicionário calculado via Pandas
         qtd_falhas = dict_falhas.get(tag, 0)
 
         if qtd_falhas == 0:
@@ -204,7 +209,6 @@ def get_mtbf_medio_kpi(df_equip):
 
     media_mtbf = sum(mtbf_values) / len(mtbf_values)
 
-    # Retorna com 1 casa decimal (ex: 2.5 anos)
     return round(media_mtbf, 1)
 
 

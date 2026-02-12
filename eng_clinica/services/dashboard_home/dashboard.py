@@ -1,0 +1,770 @@
+import pandas as pd
+
+
+def get_evolucao_backlog_metrologia(df_os, df_equip):
+    """
+    Gráfico - Pendências totais de metrologia atrasadas (temporal)
+
+    DESAFIO CRÍTICO: 
+    - A mesma OS pode aparecer em múltiplas empresas e APIs diferentes
+    - Cada registro de mão de obra gera uma linha
+    - Precisamos dedupilicar por (OS + Empresa + API)
+    """
+    if df_os.empty or df_equip is None or df_equip.empty:
+        return [], []
+
+    df = df_os.copy()
+    equip = df_equip.copy()
+
+    if 'tipoequipamento' in equip.columns:
+        equip['tipoequipamento'] = equip['tipoequipamento'].astype(str).str.strip().str.upper()
+
+    # Filtro Blindado (Regex para 'Equipamento Médico')
+    equip_medicos = equip[
+        equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
+    ]
+
+    if equip_medicos.empty:
+        return [], []
+
+    lista_tags_validas = equip_medicos[['tag', 'empresa']]
+
+    if 'tag' in df.columns:
+        df['tag'] = df['tag'].astype(str).str.strip().str.upper()
+
+    # Normaliza empresas para o merge
+    if 'empresa' in df.columns:
+        df['empresa'] = df['empresa'].astype(str).str.strip()
+    if 'empresa' in lista_tags_validas.columns:
+        lista_tags_validas['empresa'] = lista_tags_validas['empresa'].astype(str).str.strip()
+
+    # MERGE (Inner Join)
+    df_filtrada = df.merge(lista_tags_validas, on=['tag', 'empresa'], how='inner')
+
+    # Se o merge não sobrar nada, retorna vazio
+    if df_filtrada.empty:
+        print("⚠️ Nenhuma OS correspondeu aos Equipamentos Médicos.")
+        return [], []
+
+    df = df_filtrada
+
+    # 1. Conversão de Datas
+    # OTIMIZAÇÃO: Verifica se já é datetime para não converter duas vezes
+    for col in ['abertura', 'fechamento']:
+        if col in df.columns:
+            # Só converte se não for datetime
+            if not pd.api.types.is_datetime64_any_dtype(df[col]):
+                df[col] = pd.to_datetime(df[col], errors='coerce')
+
+    # 2. Remove OSs canceladas PRIMEIRO
+    if 'situacao' in df.columns:
+        df = df[~df['situacao'].str.upper().isin(['CANCELADA', 'INATIVAÇÃO', 'FECHADA'])]
+
+    # 3. Filtro das "Planejadas"
+    if 'tipomanutencao' in df.columns:
+        termos_planejadas = [
+            'CALIBRA',
+            'QUALIFICA',
+            'TSE',
+            'ENSAIO',
+            'SEGURANÇA ELÉTRICA'
+        ]
+        regex = '|'.join(termos_planejadas)
+        df = df[
+            df['tipomanutencao'].str.upper().str.contains(regex, na=False, regex=True)
+        ]
+
+    if df.empty:
+        return [], []
+
+    # 🔥 4. DEDUPLICAÇÃO CORRETA: Por (OS + Empresa + API)
+    # Cria uma chave única combinando os 3 campos
+    df['chave_unica'] = (
+        df['os'].astype(str) + '|' +
+        df['empresa'].fillna('').astype(str) + '|' +
+        df['local_api'].fillna('').astype(str)
+    )
+
+    # Para cada combinação única, agregamos os dados
+    df_deduplicated = df.groupby('chave_unica', as_index=False).agg({
+        'os': 'first',
+        'empresa': 'first',
+        'local_api': 'first',
+        'abertura': 'min',              # Data de abertura mais antiga
+        'fechamento': lambda x: x.max() if x.notna().all() else pd.NaT,  # Se alguma está aberta, NaT
+        'situacao': 'last',             # Situação mais recente
+        'tipomanutencao': 'first',
+        'tag': 'first'
+    })
+
+    # Remove a chave auxiliar
+    df = df_deduplicated.drop('chave_unica', axis=1)
+
+    # 5. Filtro temporal (últimos 24 meses)
+    hoje = pd.Timestamp.now()
+
+    # Define o limite como o último dia do mês passado
+    ultimo_dia_mes_passado = (hoje.replace(day=1) - pd.Timedelta(seconds=1))
+
+    # Filtramos dados de 12 meses antes do mês passado para garantir o histórico
+    limite_historico = hoje - pd.DateOffset(months=24)
+    df = df[df['abertura'] >= limite_historico]
+
+    # 6. Definir janela de tempo (Ajustado para 12 meses exatos)
+
+    # Define o fim como o primeiro dia do mês passado (Janeiro/2026)
+    fim_periodo = (hoje.replace(day=1) - pd.DateOffset(months=1))
+
+    # Mudado de 11 para 11 meses atrás + o mês atual = 12 meses
+    inicio_periodo = (fim_periodo - pd.DateOffset(months=11)).replace(day=1, hour=0, minute=0, second=0)
+    mes_atual = hoje.replace(day=1, hour=0, minute=0, second=0)
+
+    lista_meses = pd.date_range(
+        start=inicio_periodo,
+        end=fim_periodo,
+        freq='MS'
+    )
+
+    labels = []
+    data_saldo = []
+
+    # 7. Cálculo do Passivo Mensal
+    for mes_inicio in lista_meses:
+        # Último instante do mês
+        proximo_mes = mes_inicio + pd.DateOffset(months=1)
+        corte = proximo_mes - pd.Timedelta(seconds=1)
+
+        # OSs que estavam abertas naquela data
+        passivo_no_mes = df[
+            (df['abertura'] <= corte) &
+            ((df['fechamento'].isna()) | (df['fechamento'] > corte))
+        ]
+
+        qtd_acumulada = len(passivo_no_mes)
+
+        mes_nome = mes_inicio.strftime('%m/%Y')
+        labels.append(mes_nome)
+        data_saldo.append(qtd_acumulada)
+
+    return labels, data_saldo
+
+
+def get_evolucao_backlog_manutencoes_corretivas(df_os, df_equip):
+    """
+    Gráfico - Pendencias de manutenção corretiva
+
+    DESAFIO CRÍTICO: 
+    - A mesma OS pode aparecer em múltiplas empresas e APIs diferentes
+    - Cada registro de mão de obra gera uma linha
+    - Precisamos dedupilicar por (OS + Empresa + API)
+    """
+    if df_os.empty or df_equip is None or df_equip.empty:
+        return [], []
+
+    df = df_os.copy()
+    equip = df_equip.copy()
+
+    try:
+        # ---------------------------------------------------------
+        # PREPARAÇÃO DA LISTA DE EQUIPAMENTOS
+        # ---------------------------------------------------------
+
+        # Normalização para garantir o match
+        if 'tag' in equip.columns:
+            equip['tag'] = equip['tag'].astype(str).str.strip().str.upper()
+        if 'tipoequipamento' in equip.columns:
+            equip['tipoequipamento'] = equip['tipoequipamento'].astype(str).str.strip().str.upper()
+
+        # Filtro com REGEX para pegar "EQUIPAMENTO MÉDICO" ignorando acentos quebrados
+        equip_medicos = equip[
+            equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
+        ]
+
+        # Se não achou nenhum equipamento médico, para aqui e retorna vazio
+        if equip_medicos.empty:
+            return [], []
+
+        lista_tags_validas = equip_medicos[['tag', 'empresa']]
+
+        # ---------------------------------------------------------
+        # FILTRAGEM DA TABELA DE OS
+        # ---------------------------------------------------------
+
+        if 'tag' in df.columns:
+            df['tag'] = df['tag'].astype(str).str.strip().str.upper()
+
+        # Normaliza empresas para o merge
+        if 'empresa' in df.columns:
+            df['empresa'] = df['empresa'].astype(str).str.strip()
+        if 'empresa' in lista_tags_validas.columns:
+            lista_tags_validas['empresa'] = lista_tags_validas['empresa'].astype(str).str.strip()
+
+        # MERGE (Inner Join)
+        df_filtrada = df.merge(lista_tags_validas, on=['tag', 'empresa'], how='inner')
+
+        # Se o merge não sobrar nada, retorna vazio
+        if df_filtrada.empty:
+            print("⚠️ Nenhuma OS correspondeu aos Equipamentos Médicos.")
+            return [], []
+
+        df = df_filtrada
+
+        # ---------------------------------------------------------
+        # PROCESSAMENTO DO BACKLOG
+        # ---------------------------------------------------------
+
+        # Conversão de Datas
+        for col in ['abertura', 'fechamento']:
+            if col in df.columns and not pd.api.types.is_datetime64_any_dtype(df[col]):
+                df[col] = pd.to_datetime(df[col], errors='coerce')
+
+        # Remove canceladas
+        if 'situacao' in df.columns:
+            df = df[~df['situacao'].str.upper().isin(['FECHADA', 'CANCELADA', 'INATIVAÇÃO'])]
+
+        # Filtro de Data Recente (últimos 12 meses) e Tipo Corretiva
+        hoje = pd.Timestamp.now()
+        limite_atraso = hoje - pd.DateOffset(months=24)
+
+        if 'tipomanutencao' in df.columns:
+            df = df[
+                (df['tipomanutencao'].str.upper().str.contains('CORRETIVA', na=False)) &
+                (df['abertura'] >= limite_atraso)
+            ]
+
+        if df.empty:
+            return [], []
+
+        # Deduplicação
+        df['chave_unica'] = (
+            df['os'].astype(str) + '|' +
+            df['empresa'].fillna('').astype(str) + '|' +
+            df['local_api'].fillna('').astype(str)
+        )
+
+        df = df.groupby('chave_unica', as_index=False).agg({
+            'os': 'first',
+            'abertura': 'min',
+            'fechamento': lambda x: x.max() if x.notna().all() else pd.NaT
+        })
+
+        # Janela de Tempo
+        fim_grafico = (hoje.replace(day=1) - pd.DateOffset(months=1))
+        inicio_grafico = (fim_grafico - pd.DateOffset(months=11))
+
+        lista_meses = pd.date_range(start=inicio_grafico, end=fim_grafico, freq='MS')
+
+        labels = []
+        data_saldo = []
+
+        for mes_inicio in lista_meses:
+            proximo_mes = mes_inicio + pd.DateOffset(months=1)
+            corte = proximo_mes - pd.Timedelta(seconds=1)
+
+            passivo = df[
+                (df['abertura'] <= corte) &
+                ((df['fechamento'].isna()) | (df['fechamento'] > corte))
+            ]
+
+            labels.append(mes_inicio.strftime('%m/%Y'))
+            data_saldo.append(len(passivo))
+
+        return labels, data_saldo
+
+    except Exception as e:
+        print(f"❌ Erro crítico ao gerar gráfico de corretivas: {e}")
+        # Em caso de qualquer erro não previsto, retorna vazio para não quebrar a página
+        return [], []
+
+
+def get_total_servicos_realizados(df_os, df_equip):
+    """
+    Gráfico - Eficiência (Abertas e Fechadas no mesmo mês)
+    SOLUÇÃO DEFINITIVA: Compara Mês/Ano diretamente para evitar erro de dia 01.
+    """
+    if df_os.empty or df_equip is None or df_equip.empty:
+        return [], []
+
+    df = df_os.copy()
+    equip = df_equip.copy()
+
+    # ---------------------------------------------------------
+    # 1. PREPARAÇÃO (Tags e Tipos)
+    # ---------------------------------------------------------
+    if 'tag' in equip.columns:
+        equip['tag'] = equip['tag'].astype(str).str.strip().str.upper()
+    if 'tipoequipamento' in equip.columns:
+        equip['tipoequipamento'] = equip['tipoequipamento'].astype(str).str.strip().str.upper()
+
+    equip_medicos = equip[
+        equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
+    ]
+
+    if equip_medicos.empty:
+        return [], []
+
+    lista_tags_validas = equip_medicos[['tag', 'empresa']]
+
+    # ---------------------------------------------------------
+    # 2. FILTRAGEM DE OS E MERGE
+    # ---------------------------------------------------------
+    if 'tag' in df.columns:
+        df['tag'] = df['tag'].astype(str).str.strip().str.upper()
+    if 'empresa' in df.columns:
+        df['empresa'] = df['empresa'].astype(str).str.strip()
+    if 'empresa' in lista_tags_validas.columns:
+        lista_tags_validas['empresa'] = lista_tags_validas['empresa'].astype(str).str.strip()
+
+    df_filtrada = df.merge(lista_tags_validas, on=['tag', 'empresa'], how='inner')
+
+    if df_filtrada.empty:
+        return [], []
+
+    df = df_filtrada
+
+    # ---------------------------------------------------------
+    # 3. LIMPEZA E TRATAMENTO DE DATAS
+    # ---------------------------------------------------------
+    for col in ['abertura', 'fechamento']:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors='coerce')
+
+    # Remove linhas sem data
+    df = df.dropna(subset=['fechamento', 'abertura'])
+
+    # Filtra Status (Remove Canceladas)
+    if 'situacao' in df.columns:
+        df = df[~df['situacao'].str.upper().isin(['CANCELADA', 'INATIVAÇÃO', 'ABERTA', 'PENDENTE'])]
+
+    # ---------------------------------------------------------
+    # 4. DEDUPLICAÇÃO (Regra de Ouro)
+    # ---------------------------------------------------------
+    df['chave_unica'] = (
+        df['os'].astype(str) + '|' +
+        df['empresa'].fillna('').astype(str) + '|' +
+        df['local_api'].fillna('').astype(str)
+    )
+
+    # Agrupa pegando os extremos de data para cada OS
+    df = df.groupby('chave_unica', as_index=False).agg({
+        'abertura': 'min',
+        'fechamento': 'max'
+    })
+
+    # ---------------------------------------------------------
+    # 5. LÓGICA DE EFICIÊNCIA (SEM LOOP DE DATA)
+    # ---------------------------------------------------------
+
+    # Criamos colunas auxiliares com o formato "YYYY-MM"
+    # Isso ignora dias e horas. Se é Dezembro, é Dezembro.
+    df['mes_abertura'] = df['abertura'].dt.to_period('M')
+    df['mes_fechamento'] = df['fechamento'].dt.to_period('M')
+
+    # AQUI ESTÁ A CORREÇÃO:
+    # Filtra onde o mês de abertura é IGUAL ao mês de fechamento
+    df_eficiencia = df[df['mes_abertura'] == df['mes_fechamento']]
+
+    # ---------------------------------------------------------
+    # 6. MONTAGEM DO GRÁFICO (12 Meses)
+    # ---------------------------------------------------------
+    hoje = pd.Timestamp.now()
+    fim_periodo = (hoje.replace(day=1) - pd.DateOffset(months=1)).to_period('M')
+    inicio_periodo = (fim_periodo - 11)  # Volta 11 meses
+
+    # Cria a lista de meses completa (PeriodIndex)
+    todos_meses = pd.period_range(start=inicio_periodo, end=fim_periodo, freq='M')
+
+    # Conta quantas OSs tem em cada mês de fechamento
+    contagem = df_eficiencia.groupby('mes_fechamento').size()
+
+    # Alinha com a lista completa de meses (preenche zero onde não tem nada)
+    contagem_final = contagem.reindex(todos_meses, fill_value=0)
+
+    # Prepara saída
+    labels = [p.strftime('%m/%Y') for p in contagem_final.index]
+    data_total = contagem_final.values.tolist()
+
+    return labels, data_total
+
+
+def get_quantidade_equipamentos_cadastrados(df_equip):
+    """
+    KPI - Quantidade Total de Equipamentos Médicos
+    Retorna: int (Ex: 150)
+    """
+    # 1. Validação: Se não tiver dados, retorna 0 direto
+    if df_equip is None or df_equip.empty:
+        return 0
+
+    equip = df_equip.copy()
+
+    # 2. Tratamento de Strings
+    if 'tipoequipamento' in equip.columns:
+        equip['tipoequipamento'] = equip['tipoequipamento'].astype(str).str.strip().str.upper()
+    else:
+        # Se a coluna não existir, não tem equipamento médico
+        return 0
+
+    # 3. Filtro com REGEX (Blindado contra 'MÃ©dico')
+    equip_medicos = equip[
+        equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
+    ]
+
+    # 4. Retorna o tamanho do dataframe filtrado (inteiro)
+    return len(equip_medicos)
+
+
+def get_disponibilidade_total(df_os, df_equip):
+    """
+    KPI - Disponibilidade Total
+    Lógica: (Total Equipamentos Médicos) - (Equipamentos em Corretiva com Parada Aberta)
+    Retorna: percentual (float), qtd_disponivel (int), qtd_total (int)
+    """
+    # 1. Validação Básica
+    if df_equip is None or df_equip.empty:
+        return 0.0, 0, 0
+
+    equip = df_equip.copy()
+
+    # ---------------------------------------------------------
+    # PASSO A: CALCULAR O TOTAL DE EQUIPAMENTOS (DENOMINADOR)
+    # ---------------------------------------------------------
+    if 'tipoequipamento' in equip.columns:
+        equip['tipoequipamento'] = equip['tipoequipamento'].astype(str).str.strip().str.upper()
+
+    # Filtro Blindado (Regex para 'Equipamento Médico')
+    equip_medicos = equip[
+        equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
+    ]
+
+    total_equip = len(equip_medicos)
+
+    if total_equip == 0:
+        return 0.0, 0, 0
+
+    # ---------------------------------------------------------
+    # PASSO B: CALCULAR EQUIPAMENTOS PARADOS (NUMERADOR NEGATIVO)
+    # ---------------------------------------------------------
+    if df_os is None or df_os.empty:
+        # Se não tem OS, disponibilidade é 100%
+        return 100.0, total_equip, total_equip
+
+    df = df_os.copy()
+
+    # Prepara lista de tags válidas para o merge
+    if 'tag' in equip_medicos.columns:
+        equip_medicos['tag'] = equip_medicos['tag'].astype(str).str.strip().str.upper()
+
+    lista_tags_validas = equip_medicos[['tag', 'empresa']]
+
+    # Normaliza DF_OS para merge
+    if 'tag' in df.columns:
+        df['tag'] = df['tag'].astype(str).str.strip().str.upper()
+    if 'empresa' in df.columns:
+        df['empresa'] = df['empresa'].astype(str).str.strip()
+
+    # Merge: Só olha para OSs de Equipamentos Médicos
+    df_filtrada = df.merge(lista_tags_validas, on=['tag', 'empresa'], how='inner')
+
+    qtd_parados = 0
+
+    if not df_filtrada.empty:
+        # Conversão de datas
+        for col in ['parada', 'fechamento']:
+            if col in df_filtrada.columns and not pd.api.types.is_datetime64_any_dtype(df_filtrada[col]):
+                df_filtrada[col] = pd.to_datetime(df_filtrada[col], errors='coerce')
+
+        # === A LÓGICA DE "PARADO" ===
+        # 1. Tipo Manutenção contém 'CORRETIVA'
+        # 2. Data de Parada NÃO é Nula (Teve parada)
+        # 3. Data de Fechamento É Nula (Ainda não voltou/não fechou a OS)
+        # 4. Situação não é Cancelada
+
+        filtro_parado = (
+            (df_filtrada['tipomanutencao'].str.upper().str.contains('CORRETIVA', na=False)) &
+            (df_filtrada['parada'].notna()) &  # Tem data de parada
+            (df_filtrada['fechamento'].isna()) &  # Não tem data de volta (fechamento)
+            (~df_filtrada['situacao'].str.upper().isin(['CANCELADA', 'INATIVAÇÃO']))
+        )
+
+        # Contamos as TAGS ÚNICAS paradas (para não contar 2x se tiver duplicidade de mão de obra)
+        equipamentos_parados = df_filtrada[filtro_parado]['tag'].nunique()
+        qtd_parados = equipamentos_parados
+
+    # ---------------------------------------------------------
+    # PASSO C: CÁLCULO FINAL
+    # ---------------------------------------------------------
+    qtd_disponivel = total_equip - qtd_parados
+
+    pct_disponibilidade = (qtd_disponivel / total_equip) * 100
+
+    return round(pct_disponibilidade, 2), qtd_disponivel, total_equip
+
+
+def get_detalhes_equipamentos_parados(df_os, df_equip):
+    """
+    Retorna lista de equipamentos parados para o AG Grid.
+    Correção: Adicionado drop_duplicates(subset=['os']) para simular o DISTINCT ON.
+    """
+    if df_os.empty or df_equip is None or df_equip.empty:
+        return []
+
+    df = df_os.copy()
+    equip = df_equip.copy()
+
+    # 1. Preparação Equipamentos
+    if 'tipoequipamento' in equip.columns:
+        equip['tipoequipamento'] = equip['tipoequipamento'].astype(str).str.strip().str.upper()
+
+    # Filtro Equipamento Médico
+    equip_medicos = equip[
+        equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
+    ]
+
+    # Seleciona colunas (Garante que MODELO está aqui)
+    colunas_equip = ['tag', 'empresa', 'modelo', 'tipoequipamento']
+    colunas_existentes = [c for c in colunas_equip if c in equip_medicos.columns]
+    lista_tags_validas = equip_medicos[colunas_existentes]
+
+    # 2. Normalização para Merge
+    if 'tag' in df.columns:
+        df['tag'] = df['tag'].astype(str).str.strip().str.upper()
+    if 'tag' in lista_tags_validas.columns:
+        lista_tags_validas['tag'] = lista_tags_validas['tag'].astype(str).str.strip().str.upper()
+    if 'empresa' in df.columns:
+        df['empresa'] = df['empresa'].astype(str).str.strip()
+    if 'empresa' in lista_tags_validas.columns:
+        lista_tags_validas['empresa'] = lista_tags_validas['empresa'].astype(str).str.strip()
+
+    # 3. Merge (Inner Join)
+    df_filtrada = df.merge(lista_tags_validas, on=['tag', 'empresa'], how='inner')
+
+    if df_filtrada.empty:
+        return []
+
+    # 4. Filtro de Lógica "PARADO"
+    # Converter datas
+    for col in ['parada', 'fechamento']:
+        if col in df_filtrada.columns:
+            df_filtrada[col] = pd.to_datetime(df_filtrada[col], errors='coerce')
+
+    filtro_parado = (
+        (df_filtrada['tipomanutencao'].str.upper().str.contains('CORRETIVA', na=False)) &
+        (df_filtrada['parada'].notna()) &
+        (df_filtrada['fechamento'].isna()) &
+        (~df_filtrada['situacao'].str.upper().isin(['CANCELADA', 'INATIVAÇÃO']))
+    )
+
+    df_parados = df_filtrada[filtro_parado].copy()
+
+    if df_parados.empty:
+        return []
+
+    # =========================================================
+    # 5. DEDUPLICAÇÃO (A CORREÇÃO ESTÁ AQUI)
+    # =========================================================
+    # Isso faz o mesmo que "SELECT DISTINCT ON (os.os)"
+    # Ordenamos primeiro para garantir consistência
+    df_parados = df_parados.sort_values(by=['os'])
+
+    # Remove duplicatas mantendo a primeira ocorrência da OS
+    df_parados = df_parados.drop_duplicates(subset=['os'], keep='first')
+
+    # =========================================================
+
+    # 6. Cálculos Finais e Formatação
+    hoje = pd.Timestamp.now()
+
+    # Dias parado
+    df_parados['dias_parado'] = (hoje - df_parados['parada']).dt.days
+
+    # Formatação de Data
+    df_parados['data_parada_fmt'] = df_parados['parada'].dt.strftime('%d/%m/%Y %H:%M')
+
+    # Preenche modelo vazio se necessário
+    if 'modelo' in df_parados.columns:
+        df_parados['modelo'] = df_parados['modelo'].fillna('-')
+    else:
+        df_parados['modelo'] = '-'
+
+    # Seleção final de colunas
+    cols_final = [
+        'os', 'empresa', 'tag', 'tipoequipamento', 'modelo',
+        'data_parada_fmt', 'dias_parado', 'tipomanutencao', 'situacao'
+    ]
+    cols_existentes_final = [c for c in cols_final if c in df_parados.columns]
+
+    # Retorna ordenado por dias parado (maior para menor)
+    return df_parados[cols_existentes_final].sort_values('dias_parado', ascending=False).to_dict('records')
+
+
+def get_equipamentos_criticos_indisponiveis_os(df_os, df_equip):
+    """
+    KPI - Quantidade de Equipamentos Críticos Parados
+    Lógica: Equipamentos Médicos com OS Corretiva + Parada + Aberta + Prioridade ALTA
+    Retorna: int (Quantidade absoluta)
+    """
+    # 1. Validação
+    if df_equip is None or df_equip.empty:
+        return 0
+
+    equip = df_equip.copy()
+
+    # ---------------------------------------------------------
+    # A. PREPARAÇÃO DO UNIVERSO (Equipamentos Médicos)
+    # ---------------------------------------------------------
+    if 'tipoequipamento' in equip.columns:
+        equip['tipoequipamento'] = equip['tipoequipamento'].astype(str).str.strip().str.upper()
+
+    equip_medicos = equip[
+        equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
+    ]
+
+    if equip_medicos.empty:
+        return 0
+
+    # ---------------------------------------------------------
+    # B. CRUZAMENTO COM OS E FILTRO DE PARADOS CRÍTICOS
+    # ---------------------------------------------------------
+    if df_os is None or df_os.empty:
+        return 0
+
+    df = df_os.copy()
+
+    # Normalização para Merge
+    if 'tag' in equip_medicos.columns:
+        equip_medicos['tag'] = equip_medicos['tag'].astype(str).str.strip().str.upper()
+    if 'tag' in df.columns:
+        df['tag'] = df['tag'].astype(str).str.strip().str.upper()
+    if 'empresa' in df.columns:
+        df['empresa'] = df['empresa'].astype(str).str.strip()
+
+    # Normaliza a Prioridade
+    if 'prioridade' in df.columns:
+        df['prioridade'] = df['prioridade'].astype(str).str.strip().str.upper()
+
+    # Merge
+    lista_tags_validas = equip_medicos[['tag', 'empresa']]
+    df_filtrada = df.merge(lista_tags_validas, on=['tag', 'empresa'], how='inner')
+
+    qtd_criticos_parados = 0
+
+    if not df_filtrada.empty:
+        # Conversão de datas
+        for col in ['parada', 'fechamento']:
+            if col in df_filtrada.columns:
+                df_filtrada[col] = pd.to_datetime(df_filtrada[col], errors='coerce')
+
+        # === LÓGICA DE CRÍTICO PARADO ===
+        # Prioridade ALTA + Corretiva + Parado + Sem Volta
+        filtro_critico = (
+            (df_filtrada['tipomanutencao'].str.upper().str.contains('CORRETIVA', na=False)) &
+            (df_filtrada['parada'].notna()) &
+            (df_filtrada['fechamento'].isna()) &
+            (~df_filtrada['situacao'].str.upper().isin(['CANCELADA', 'INATIVAÇÃO'])) &
+            (df_filtrada['prioridade'] == 'ALTA')  # <--- O filtro chave
+        )
+
+        # Conta quantos equipamentos únicos estão nessa situação
+        qtd_criticos_parados = df_filtrada[filtro_critico]['tag'].nunique()
+
+    return qtd_criticos_parados
+
+
+def get_detalhes_equipamentos_criticos_indisponiveis(df_os, df_equip):
+    """
+    Retorna lista de equipamentos criticos indisponiveis para o AG Grid.
+    Correção: Adicionado drop_duplicates(subset=['os']) para simular o DISTINCT ON.
+    """
+    if df_os.empty or df_equip is None or df_equip.empty:
+        return []
+
+    df = df_os.copy()
+    equip = df_equip.copy()
+
+    # 1. Preparação Equipamentos
+    if 'tipoequipamento' in equip.columns:
+        equip['tipoequipamento'] = equip['tipoequipamento'].astype(str).str.strip().str.upper()
+
+    # Filtro Equipamento Médico
+    equip_medicos = equip[
+        equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
+    ]
+
+    # Seleciona colunas (Garante que MODELO está aqui)
+    colunas_equip = ['tag', 'empresa', 'modelo', 'tipoequipamento']
+    colunas_existentes = [c for c in colunas_equip if c in equip_medicos.columns]
+    lista_tags_validas = equip_medicos[colunas_existentes]
+
+    # 2. Normalização para Merge
+    if 'tag' in df.columns:
+        df['tag'] = df['tag'].astype(str).str.strip().str.upper()
+    if 'tag' in lista_tags_validas.columns:
+        lista_tags_validas['tag'] = lista_tags_validas['tag'].astype(str).str.strip().str.upper()
+    if 'empresa' in df.columns:
+        df['empresa'] = df['empresa'].astype(str).str.strip()
+    if 'empresa' in lista_tags_validas.columns:
+        lista_tags_validas['empresa'] = lista_tags_validas['empresa'].astype(str).str.strip()
+
+    # 3. Merge (Inner Join)
+    df_filtrada = df.merge(lista_tags_validas, on=['tag', 'empresa'], how='inner')
+
+    if df_filtrada.empty:
+        return []
+
+    # 4. Filtro de Lógica "PARADO"
+    # Converter datas
+    for col in ['parada', 'fechamento']:
+        if col in df_filtrada.columns:
+            df_filtrada[col] = pd.to_datetime(df_filtrada[col], errors='coerce')
+
+    filtro_parado = (
+        (df_filtrada['tipomanutencao'].str.upper().str.contains('CORRETIVA', na=False)) &
+        (df_filtrada['parada'].notna()) &
+        (df_filtrada['fechamento'].isna()) &
+        (~df_filtrada['situacao'].str.upper().isin(['CANCELADA', 'INATIVAÇÃO'])) &
+        (df_filtrada['prioridade'] == 'ALTA')  # <--- O filtro chave para críticos
+    )
+
+    df_parados = df_filtrada[filtro_parado].copy()
+
+    if df_parados.empty:
+        return []
+
+    # =========================================================
+    # 5. DEDUPLICAÇÃO (A CORREÇÃO ESTÁ AQUI)
+    # =========================================================
+    # Isso faz o mesmo que "SELECT DISTINCT ON (os.os)"
+    # Ordenamos primeiro para garantir consistência
+    df_parados = df_parados.sort_values(by=['os'])
+
+    # Remove duplicatas mantendo a primeira ocorrência da OS
+    df_parados = df_parados.drop_duplicates(subset=['os'], keep='first')
+
+    # =========================================================
+
+    # 6. Cálculos Finais e Formatação
+    hoje = pd.Timestamp.now()
+
+    # Dias parado
+    df_parados['dias_parado'] = (hoje - df_parados['parada']).dt.days
+
+    # Formatação de Data
+    df_parados['data_parada_fmt'] = df_parados['parada'].dt.strftime('%d/%m/%Y %H:%M')
+
+    # Preenche modelo vazio se necessário
+    if 'modelo' in df_parados.columns:
+        df_parados['modelo'] = df_parados['modelo'].fillna('-')
+    else:
+        df_parados['modelo'] = '-'
+
+    # Seleção final de colunas
+    cols_final = [
+        'os', 'empresa', 'tag', 'tipoequipamento', 'modelo',
+        'data_parada_fmt', 'dias_parado', 'tipomanutencao', 'situacao',
+        'prioridade',
+    ]
+    cols_existentes_final = [c for c in cols_final if c in df_parados.columns]
+
+    # Retorna ordenado por dias parado (maior para menor)
+    return df_parados[cols_existentes_final].sort_values('dias_parado', ascending=False).to_dict('records')
