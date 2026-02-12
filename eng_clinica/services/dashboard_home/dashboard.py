@@ -22,12 +22,12 @@ def get_evolucao_backlog_metrologia(df_os, df_equip):
     # Filtro Blindado (Regex para 'Equipamento Médico')
     equip_medicos = equip[
         equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
-    ]
+    ].copy()
 
     if equip_medicos.empty:
         return [], []
 
-    lista_tags_validas = equip_medicos[['tag', 'empresa']]
+    lista_tags_validas = equip_medicos[['tag', 'empresa']].copy()
 
     if 'tag' in df.columns:
         df['tag'] = df['tag'].astype(str).str.strip().str.upper()
@@ -184,7 +184,7 @@ def get_evolucao_backlog_manutencoes_corretivas(df_os, df_equip):
         if equip_medicos.empty:
             return [], []
 
-        lista_tags_validas = equip_medicos[['tag', 'empresa']]
+        lista_tags_validas = equip_medicos[['tag', 'empresa']].copy()
 
         # ---------------------------------------------------------
         # FILTRAGEM DA TABELA DE OS
@@ -298,12 +298,12 @@ def get_total_servicos_realizados(df_os, df_equip):
 
     equip_medicos = equip[
         equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
-    ]
+    ].copy()
 
     if equip_medicos.empty:
         return [], []
 
-    lista_tags_validas = equip_medicos[['tag', 'empresa']]
+    lista_tags_validas = equip_medicos[['tag', 'empresa']].copy()
 
     # ---------------------------------------------------------
     # 2. FILTRAGEM DE OS E MERGE
@@ -408,7 +408,7 @@ def get_quantidade_equipamentos_cadastrados(df_equip):
     # 3. Filtro com REGEX (Blindado contra 'MÃ©dico')
     equip_medicos = equip[
         equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
-    ]
+    ].copy()
 
     # 4. Retorna o tamanho do dataframe filtrado (inteiro)
     return len(equip_medicos)
@@ -435,7 +435,7 @@ def get_disponibilidade_total(df_os, df_equip):
     # Filtro Blindado (Regex para 'Equipamento Médico')
     equip_medicos = equip[
         equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
-    ]
+    ].copy()
 
     total_equip = len(equip_medicos)
 
@@ -455,7 +455,7 @@ def get_disponibilidade_total(df_os, df_equip):
     if 'tag' in equip_medicos.columns:
         equip_medicos['tag'] = equip_medicos['tag'].astype(str).str.strip().str.upper()
 
-    lista_tags_validas = equip_medicos[['tag', 'empresa']]
+    lista_tags_validas = equip_medicos[['tag', 'empresa']].copy()
 
     # Normaliza DF_OS para merge
     if 'tag' in df.columns:
@@ -519,7 +519,7 @@ def get_detalhes_equipamentos_parados(df_os, df_equip):
     # Filtro Equipamento Médico
     equip_medicos = equip[
         equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
-    ]
+    ].copy()
 
     # Seleciona colunas (Garante que MODELO está aqui)
     colunas_equip = ['tag', 'empresa', 'modelo', 'tipoequipamento']
@@ -618,7 +618,7 @@ def get_equipamentos_criticos_indisponiveis_os(df_os, df_equip):
 
     equip_medicos = equip[
         equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
-    ]
+    ].copy()
 
     if equip_medicos.empty:
         return 0
@@ -644,7 +644,7 @@ def get_equipamentos_criticos_indisponiveis_os(df_os, df_equip):
         df['prioridade'] = df['prioridade'].astype(str).str.strip().str.upper()
 
     # Merge
-    lista_tags_validas = equip_medicos[['tag', 'empresa']]
+    lista_tags_validas = equip_medicos[['tag', 'empresa']].copy()
     df_filtrada = df.merge(lista_tags_validas, on=['tag', 'empresa'], how='inner')
 
     qtd_criticos_parados = 0
@@ -689,7 +689,7 @@ def get_detalhes_equipamentos_criticos_indisponiveis(df_os, df_equip):
     # Filtro Equipamento Médico
     equip_medicos = equip[
         equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
-    ]
+    ].copy()
 
     # Seleciona colunas (Garante que MODELO está aqui)
     colunas_equip = ['tag', 'empresa', 'modelo', 'tipoequipamento']
