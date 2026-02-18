@@ -65,39 +65,70 @@ def home(request):
     # ---------------------------------------------------------
     # 4. PRÉ-PROCESSAMENTO
     # ---------------------------------------------------------
+    # OTIMIZAÇÃO: Realizar conversões e Merges AQUI, uma única vez.
+
+    # 4.1 Tratamento de Equipamentos (Filtra apenas Médicos aqui)
+    df_equip_medicos = pd.DataFrame()
+    if not df_equip.empty:
+        # Normaliza strings
+        if 'tipoequipamento' in df_equip.columns:
+            df_equip['tipoequipamento'] = df_equip['tipoequipamento'].astype(str).str.strip().str.upper()
+        if 'tag' in df_equip.columns:
+            df_equip['tag'] = df_equip['tag'].astype(str).str.strip().str.upper()
+        if 'empresa' in df_equip.columns:
+            df_equip['empresa'] = df_equip['empresa'].astype(str).str.strip()
+
+        # Filtro Blindado (Regex para 'Equipamento Médico')
+        df_equip_medicos = df_equip[
+            df_equip['tipoequipamento'].str.contains(r'EQUIPAMENTO\s+M.*DICO', regex=True, na=False)
+        ].copy()
+
+    # 4.2 Tratamento de OS
+    df_merged = pd.DataFrame()
     if not df_os.empty:
+        # Conversão de Datas
         for col in ['abertura', 'fechamento', 'parada']:
             if col in df_os.columns:
                 df_os[col] = pd.to_datetime(df_os[col], errors='coerce')
+
+        # Normaliza strings para o Merge
+        if 'tag' in df_os.columns:
+            df_os['tag'] = df_os['tag'].astype(str).str.strip().str.upper()
+        if 'empresa' in df_os.columns:
+            df_os['empresa'] = df_os['empresa'].astype(str).str.strip()
+
+        # 4.3 MERGE CENTRALIZADO (Inner Join)
+        # Cruza OS com Equipamentos Médicos. O resultado df_merged contém apenas OS de equip. médicos.
+        if not df_equip_medicos.empty:
+            df_merged = df_os.merge(df_equip_medicos[['tag', 'empresa', 'tipoequipamento', 'modelo']], on=['tag', 'empresa'], how='inner')
 
     # ---------------------------------------------------------
     # 5. GERAÇÃO DOS GRÁFICOS
     # ---------------------------------------------------------
 
-    # Gráfico 1: Metrologia (Segue normal, só usa df_os)
-    labels_backlog, data_backlog = get_evolucao_backlog_metrologia(df_os, df_equip)
+    # Gráfico 1: Metrologia
+    labels_backlog, data_backlog = get_evolucao_backlog_metrologia(df_merged)
 
-    # Gráfico 2: Corretivas (AGORA RECEBE df_equip TAMBÉM)
-    # A função vai usar o df_equip para filtrar o que é Equipamento Médico
-    labels_backlog_corretivas, data_backlog_corretivas = get_evolucao_backlog_manutencoes_corretivas(df_os, df_equip)
+    # Gráfico 2: Corretivas
+    labels_backlog_corretivas, data_backlog_corretivas = get_evolucao_backlog_manutencoes_corretivas(df_merged)
 
-    # Gráfico 3: Total Realizado (Segue normal)
-    labels_backlog_total_servicos, data_backlog_total_servicos = get_total_servicos_realizados(df_os, df_equip)
+    # Gráfico 3: Total Realizado
+    labels_backlog_total_servicos, data_backlog_total_servicos = get_total_servicos_realizados(df_merged)
 
     # KPI: Quantidade de Equipamentos Cadastrados
-    total_equipamentos_medicos = get_quantidade_equipamentos_cadastrados(df_equip)
+    total_equipamentos_medicos = get_quantidade_equipamentos_cadastrados(df_equip_medicos)
 
     # KPI: Disponibilidade Total
-    kpi_disp_pct, kpi_disp_qtd, kpi_disp_total = get_disponibilidade_total(df_os, df_equip)
+    kpi_disp_pct, kpi_disp_qtd, kpi_disp_total = get_disponibilidade_total(df_merged, df_equip_medicos)
 
     # LISTA AG GRID (Detalhes)
-    lista_equipamentos_parados = get_detalhes_equipamentos_parados(df_os, df_equip)
+    lista_equipamentos_parados = get_detalhes_equipamentos_parados(df_merged)
 
     # KPI Equipamentos Críticos Indisponíveis
-    qtd_criticos_parados = get_equipamentos_criticos_indisponiveis_os(df_os, df_equip)
+    qtd_criticos_parados = get_equipamentos_criticos_indisponiveis_os(df_merged)
 
     # LISTA AG GRID (Detalhes)
-    lista_equipamentos_criticos_indisponiveis = get_detalhes_equipamentos_criticos_indisponiveis(df_os, df_equip)
+    lista_equipamentos_criticos_indisponiveis = get_detalhes_equipamentos_criticos_indisponiveis(df_merged)
 
     # ---------------------------------------------------------
     # 6. CONTEXTO FINAL
