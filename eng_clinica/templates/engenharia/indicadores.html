@@ -33,8 +33,8 @@
 </div>
 
 <div class="row g-4 mb-4">
-    <div class="col-12 col-md-6 col-lg-4">
-        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+    {% comment %} <div class="col-12 col-md-6 col-lg-4">
+         <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
             <div class="card-body p-4 position-relative">
                 
                 <h6 class="text-uppercase text-muted fw-bold small mb-2">Equipamentos Cadastrados</h6>
@@ -63,806 +63,808 @@
                 <div class="position-absolute top-0 end-0 p-3 {{ total_equipamentos_cadastrados|yesno:'opacity-10,opacity-0' }}">
                     <i class="bi bi-box-seam text-primary" style="font-size: 5rem;"></i>
                 </div>
-            </div>
+            </div> 
             
             <div class="card-footer bg-light border-0 py-2 px-4">
                 <small class="text-muted">
                     <i class="bi bi-clock-history me-1"></i> Dados do período filtrado
                 </small>
             </div>
-    </div>
-</div>
+    </div>  {% endcomment %}
 
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Manutenção Corretiva</h6>
-            
-            {% if total_os_corretiva > 0 %}
-                <p class="text-muted small mb-3">OSs fechadas no período</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-danger">
-                        {{ total_os_corretiva }}
-                    </h1>
-                    <span class="badge bg-danger-subtle text-danger rounded-pill ms-3 fs-6">
-                        <i class="bi bi-tools"></i> Fechadas
-                    </span>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Nenhuma corretiva fechada</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0</h1>
-                    <span class="badge bg-light text-muted border rounded-pill ms-3 fs-6">
-                        <i class="bi bi-check2-all"></i> Tudo OK
-                    </span>
-                </div>
-            {% endif %}
 
-            <div class="position-absolute top-0 end-0 p-3 {{ total_os_corretiva|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-wrench-adjustable text-danger" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-calendar-check me-1"></i> Data Ref: Fechamento
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">MTBF Médio</h6>
-            
-            {% if kpi_mtbf > 0 %}
-                <p class="text-muted small mb-3">Tempo Médio Entre Falhas</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-info">
-                        {{ kpi_mtbf }}<span class="fs-4 text-muted ms-1">anos</span>
-                    </h1>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Dados insuficientes</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_mtbf|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-activity text-info" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-info-circle me-1"></i> Baseado nos itens cadastrados
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">MTTR (Dias)</h6>
-            
-            {% if kpi_mttr > 0 %}
-                <p class="text-muted small mb-3">Tempo Médio de Reparo</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-warning">
-                        {{ kpi_mttr }}<span class="fs-4 text-muted ms-1">dias</span>
-                    </h1>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Sem reparos no período</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_mttr|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-stopwatch text-warning" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-calculator me-1"></i> (Fechamento - Abertura) / Qtd
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Reparos Imediatos</h6>
-            
-            {% if kpi_reparos_imediato > 0 %}
-                <p class="text-muted small mb-3">Resolvidos em < 1 minuto</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-info">
-                        {{ kpi_reparos_imediato }}
-                    </h1>
-                    <span class="badge bg-info-subtle text-info-emphasis rounded-pill ms-3 fs-6">
-                        <i class="bi bi-lightning-fill"></i> Flash
-                    </span>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Nenhum reparo relâmpago</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_reparos_imediato|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-stopwatch-fill text-info" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-clock me-1"></i> (Fechamento - Abertura) < 60s
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Tempo 1º Atendimento</h6>
-            
-            {% if kpi_tma > 0 %}
-                <p class="text-muted small mb-3">Média em Horas</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-primary">
-                        {{ kpi_tma }}<span class="fs-4 text-muted ms-1">h</span>
-                    </h1>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Sem dados válidos</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-hourglass-split text-primary" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-stopwatch me-1"></i> (Atendimento - Abertura)
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Mediana 1º Atendimento</h6>
-            
-            {% if kpi_tma_mediana > 0 %}
-                <p class="text-muted small mb-3">Valor Central (Horas)</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0" style="color: #6f42c1;">
-                        {{ kpi_tma_mediana }}<span class="fs-4 text-muted ms-1">h</span>
-                    </h1>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Sem dados válidos</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma_mediana|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-funnel" style="font-size: 5rem; color: #6f42c1;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-filter me-1"></i> Desconsidera extremos
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">TMA Crítico (Alta Prioridade)</h6>
-            
-            {% if kpi_tma_critico > 0 %}
-                <p class="text-muted small mb-3">Tempo p/ Atender Emergências</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-danger">
-                        {{ kpi_tma_critico }}<span class="fs-4 text-muted ms-1">h</span>
-                    </h1>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Sem chamados críticos</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma_critico|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-lightning-charge me-1"></i> Corretivas de Alta Prioridade
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Mediana 1º Atendimento Crítico</h6>
-            
-            {% if kpi_tma_critico_mediana > 0 %}
-                <p class="text-muted small mb-3">Valor Central (Horas)</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0" style="color: #6f42c1;">
-                        {{ kpi_tma_critico_mediana }}<span class="fs-4 text-muted ms-1">h</span>
-                    </h1>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Sem dados válidos</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma_critico_mediana|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-funnel" style="font-size: 5rem; color: #6f42c1;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-filter me-1"></i> Desconsidera extremos
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Downtime Médio Crítico</h6>
-            
-            {% if kpi_tma_equipamento_critico_parado > 0 %}
-                <p class="text-muted small mb-3">Tempo Equipamento Parado</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-danger">
-                        {{ kpi_tma_equipamento_critico_parado }}<span class="fs-4 text-muted ms-1">h</span>
-                    </h1>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Sem paradas críticas</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma_equipamento_critico_parado|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-x-octagon-fill text-danger" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-clock-history me-1"></i> (Funcionamento - Parada)
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Mediana Tempo Equipamento Parado</h6>
-            
-            {% if kpi_tma_equipamento_critico_parado_mediana > 0 %}
-                <p class="text-muted small mb-3">Valor Central (Horas)</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0" style="color: #6f42c1;">
-                        {{ kpi_tma_equipamento_critico_parado_mediana }}<span class="fs-4 text-muted ms-1">h</span>
-                    </h1>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Sem dados válidos</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma_equipamento_critico_parado_mediana|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-funnel" style="font-size: 5rem; color: #6f42c1;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-filter me-1"></i> Desconsidera extremos
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Taxa de Disponibilidade</h6>
-            
-            {% if kpi_taxa_disponibilidade > 0 %}
-                <p class="text-muted small mb-3">Taxa de Operação</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-success">
-                        {{ kpi_taxa_disponibilidade }}<span class="fs-4 text-muted ms-1">%</span>
-                    </h1>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Sem dados para cálculo</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_taxa_disponibilidade|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-check-circle-fill text-success" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-graph-up-arrow me-1"></i> (Horas Úteis - Paradas) / Úteis
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Disp. Equip. Críticos</h6>
-            
-            {% if kpi_taxa_disponibilidade_criticos > 0 %}
-                <p class="text-muted small mb-3">Alta Prioridade</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-success">
-                        {{ kpi_taxa_disponibilidade_criticos }}<span class="fs-4 text-muted ms-1">%</span>
-                    </h1>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Sem dados críticos</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_taxa_disponibilidade_criticos|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-shield-check text-success" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-activity me-1"></i> Foco em Prioridade Alta
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Equipamentos Indisponíveis</h6>
-            
-            {% if kpi_equip_indisponiveis > 0 %}
-                <p class="text-muted small mb-3">Geraram parada no período</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-danger">
-                        {{ kpi_equip_indisponiveis }}
-                    </h1>
-                    <span class="badge bg-danger-subtle text-danger rounded-pill ms-3 fs-6">
-                        <i class="bi bi-x-circle"></i> Parados
-                    </span>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Nenhum equipamento parou</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0</h1>
-                    <span class="badge bg-light text-muted border rounded-pill ms-3 fs-6">
-                        <i class="bi bi-check-all"></i> 100% On
-                    </span>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_equip_indisponiveis|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-slash-circle-fill text-danger" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-calendar-event me-1"></i> Baseado na data de Abertura
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Críticos Indisponíveis</h6>
-            
-            {% if kpi_equip_criticos_indisponiveis > 0 %}
-                <p class="text-muted small mb-3">Paradas de Alta Prioridade</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-danger">
-                        {{ kpi_equip_criticos_indisponiveis }}
-                    </h1>
-                    <span class="badge bg-danger text-white rounded-pill ms-3 fs-6">
-                        <i class="bi bi-exclamation-octagon"></i> Crítico
-                    </span>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Nenhum crítico parou</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0</h1>
-                    <span class="badge bg-light text-muted border rounded-pill ms-3 fs-6">
-                        <i class="bi bi-shield-check"></i> Seguro
-                    </span>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_equip_criticos_indisponiveis|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-radioactive text-danger" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-filter me-1"></i> Parada + Prioridade Alta
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">% Resolução no Período</h6>
-            
-            {% if kpi_resolucao_corretivas > 0 %}
-                <p class="text-muted small mb-3">Abertas e Fechadas no Mês</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-primary">
-                        {{ kpi_resolucao_corretivas }}<span class="fs-4 text-muted ms-1">%</span>
-                    </h1>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Nenhuma resolvida no prazo</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0%</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_resolucao_corretivas|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-check-all text-primary" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-speedometer2 me-1"></i> (Fechadas / Abertas) * 100
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Pendências / Equip.</h6>
-            
-            {% if kpi_pendencias_corretiva > 0 %}
-                <p class="text-muted small mb-3">Média de OSs Abertas por Tag</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-warning">
-                        {{ kpi_pendencias_corretiva }}
-                    </h1>
-                    <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill ms-3 fs-6">
-                        <i class="bi bi-list-task"></i> Acúmulo
-                    </span>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Sem pendências registradas</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0</h1>
-                    <span class="badge bg-light text-muted border rounded-pill ms-3 fs-6">
-                        <i class="bi bi-check2-circle"></i> Em dia
-                    </span>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_pendencias_corretiva|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-hourglass-split text-warning" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-calculator me-1"></i> (Abertas + Pendentes) / Tags
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Cumprimento Preventiva</h6>
-            
-            {% if kpi_cumprimento_preventiva > 0 %}
-                <p class="text-muted small mb-3">Executadas / Abertas</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-success">
-                        {{ kpi_cumprimento_preventiva }}<span class="fs-4 text-muted ms-1">%</span>
-                    </h1>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Nenhuma preventiva executada</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0%</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_cumprimento_preventiva|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-clipboard-check text-success" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-list-check me-1"></i> Aderência ao Plano
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Cumprimento Calibração</h6>
-            
-            {% if kpi_cumprimento_calibracao > 0 %}
-                <p class="text-muted small mb-3">Executadas / Abertas</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-success">
-                        {{ kpi_cumprimento_calibracao }}<span class="fs-4 text-muted ms-1">%</span>
-                    </h1>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Nenhuma preventiva executada</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0%</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_cumprimento_calibracao|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-clipboard-check text-success" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-list-check me-1"></i> Aderência ao Plano
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Cumprimento Treinamento</h6>
-            
-            {% if kpi_cumprimento_treinamento > 0 %}
-                <p class="text-muted small mb-3">Executadas / Abertas</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-success">
-                        {{ kpi_cumprimento_treinamento }}<span class="fs-4 text-muted ms-1">%</span>
-                    </h1>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Nenhuma preventiva executada</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0%</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_cumprimento_treinamento|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-clipboard-check text-success" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-list-check me-1"></i> Aderência ao Plano
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-lg-4">
-    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
-        <div class="card-body p-4 position-relative">
-            
-            <h6 class="text-uppercase text-muted fw-bold small mb-2">Cumprimento TSE</h6>
-            
-            {% if kpi_cumprimento_tse > 0 %}
-                <p class="text-muted small mb-3">Executadas / Abertas</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-success">
-                        {{ kpi_cumprimento_tse }}<span class="fs-4 text-muted ms-1">%</span>
-                    </h1>
-                </div>
-            {% else %}
-                <p class="text-muted small mb-3">Nenhuma preventiva executada</p>
-                <div class="d-flex align-items-center">
-                    <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0%</h1>
-                </div>
-            {% endif %}
-
-            <div class="position-absolute top-0 end-0 p-3 {{ kpi_cumprimento_tse|yesno:'opacity-10,opacity-0' }}">
-                <i class="bi bi-clipboard-check text-success" style="font-size: 5rem;"></i>
-            </div>
-        </div>
-        
-        <div class="card-footer bg-light border-0 py-2 px-4">
-            <small class="text-muted">
-                <i class="bi bi-list-check me-1"></i> Aderência ao Plano
-            </small>
-        </div>
-    </div>
-</div>
-
-<div class="row g-4 mb-4">
-    <div class="col-12 col-lg-6">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
-                <h5 class="text-uppercase text-muted fw-bold small mb-0">
-                    <i class="bi bi-list-ol me-2"></i> Maiores Causas de Corretivas
-                </h5>
-                <small class="text-muted">Top 10 motivos de falha (Exceto Abertas/Pendentes)</small>
-            </div>
-            <div class="card-body p-4">
-                {% if maiores_causas_corretivas %}
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead class="table-light small text-muted">
-                                <tr>
-                                    <th scope="col" style="width: 40%;">Causa</th>
-                                    <th scope="col" style="width: 40%;">Frequência Relativa</th>
-                                    <th scope="col" class="text-end">Qtd</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in maiores_causas_corretivas %}
-                                <tr>
-                                    <td class="fw-bold text-dark small">{{ item.causa }}</td>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="progress flex-grow-1" style="height: 6px;">
-                                                <div class="progress-bar bg-danger" role="progressbar" 
-                                                     style="width: {{ item.percent }}%;" 
-                                                     aria-valuenow="{{ item.percent }}" 
-                                                     aria-valuemin="0" aria-valuemax="100">
-                                                </div>
-                                            </div>
-                                            <span class="ms-2 small text-muted">{{ item.percent }}%</span>
-                                        </div>
-                                    </td>
-                                    <td class="text-end fw-bold">{{ item.qtd }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Manutenção Corretiva</h6>
+                
+                {% if total_os_corretiva > 0 %}
+                    <p class="text-muted small mb-3">OSs fechadas no período</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-danger">
+                            {{ total_os_corretiva }}
+                        </h1>
+                        <span class="badge bg-danger-subtle text-danger rounded-pill ms-3 fs-6">
+                            <i class="bi bi-tools"></i> Fechadas
+                        </span>
                     </div>
                 {% else %}
-                    <div class="text-center text-muted py-5">
-                        <i class="bi bi-clipboard-x fs-1 opacity-25"></i>
-                        <p class="mt-2 small">Nenhuma causa registrada para os filtros aplicados.</p>
+                    <p class="text-muted small mb-3">Nenhuma corretiva fechada</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0</h1>
+                        <span class="badge bg-light text-muted border rounded-pill ms-3 fs-6">
+                            <i class="bi bi-check2-all"></i> Tudo OK
+                        </span>
                     </div>
                 {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ total_os_corretiva|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-wrench-adjustable text-danger" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-calendar-check me-1"></i> Data Ref: Fechamento
+                </small>
             </div>
         </div>
     </div>
-</div>
 
-<div class="row g-4 mb-4">
-    <div class="col-12">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
-                <h5 class="text-uppercase text-muted fw-bold small mb-0">
-                    <i class="bi bi-tools me-2"></i> OS Corretivas por Família
-                </h5>
-                <small class="text-muted">Acumulado dos últimos 3 anos (para os equipamentos filtrados)</small>
-            </div>
-            <div class="card-body p-4">
-                {% if tabela_corretivas_familia %}
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead class="table-light small text-muted">
-                                <tr>
-                                    <th scope="col">Família</th>
-                                    <th scope="col" class="text-end">Qtd. Corretivas</th>
-                                    <th scope="col" style="width: 30%;">Impacto Visual</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in tabela_corretivas_familia %}
-                                <tr>
-                                    <td class="fw-bold text-dark small">{{ item.familia }}</td>
-                                    <td class="text-end fw-bold">{{ item.qtd_corretivas }}</td>
-                                    <td>
-                                        {% with max_val=tabela_corretivas_familia.0.qtd_corretivas %}
-                                            <div class="progress" style="height: 6px;">
-                                                <div class="progress-bar bg-danger" role="progressbar" 
-                                                        style="width: {% widthratio item.qtd_corretivas max_val 100 %}%;" 
-                                                        aria-valuenow="{{ item.qtd_corretivas }}" 
-                                                        aria-valuemin="0" aria-valuemax="{{ max_val }}">
-                                                </div>
-                                            </div>
-                                        {% endwith %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+    {% comment %} <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">MTBF Médio</h6>
+                
+                {% if kpi_mtbf > 0 %}
+                    <p class="text-muted small mb-3">Tempo Médio Entre Falhas</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-info">
+                            {{ kpi_mtbf }}<span class="fs-4 text-muted ms-1">anos</span>
+                        </h1>
                     </div>
                 {% else %}
-                    <div class="text-center text-muted py-5">
-                        <i class="bi bi-clipboard-x fs-1 opacity-25"></i>
-                        <p class="mt-2 small">Nenhuma corretiva encontrada nos últimos 3 anos para estes equipamentos.</p>
+                    <p class="text-muted small mb-3">Dados insuficientes</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
                     </div>
                 {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_mtbf|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-activity text-info" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle me-1"></i> Baseado nos itens cadastrados
+                </small>
+            </div>
+        </div> 
+    </div> {% endcomment %}
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">MTTR (Dias)</h6>
+                
+                {% if kpi_mttr > 0 %}
+                    <p class="text-muted small mb-3">Tempo Médio de Reparo</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-warning">
+                            {{ kpi_mttr }}<span class="fs-4 text-muted ms-1">dias</span>
+                        </h1>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Sem reparos no período</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_mttr|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-stopwatch text-warning" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-calculator me-1"></i> (Fechamento - Abertura) / Qtd
+                </small>
             </div>
         </div>
     </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Reparos Imediatos</h6>
+                
+                {% if kpi_reparos_imediato > 0 %}
+                    <p class="text-muted small mb-3">Resolvidos em < 1 minuto</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-info">
+                            {{ kpi_reparos_imediato }}
+                        </h1>
+                        <span class="badge bg-info-subtle text-info-emphasis rounded-pill ms-3 fs-6">
+                            <i class="bi bi-lightning-fill"></i> Flash
+                        </span>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Nenhum reparo relâmpago</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0</h1>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_reparos_imediato|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-stopwatch-fill text-info" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-clock me-1"></i> (Fechamento - Abertura) < 60s
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Tempo 1º Atendimento</h6>
+                
+                {% if kpi_tma > 0 %}
+                    <p class="text-muted small mb-3">Média em Horas</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-primary">
+                            {{ kpi_tma }}<span class="fs-4 text-muted ms-1">h</span>
+                        </h1>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Sem dados válidos</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-hourglass-split text-primary" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-stopwatch me-1"></i> (Atendimento - Abertura)
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Mediana 1º Atendimento</h6>
+                
+                {% if kpi_tma_mediana > 0 %}
+                    <p class="text-muted small mb-3">Valor Central (Horas)</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0" style="color: #6f42c1;">
+                            {{ kpi_tma_mediana }}<span class="fs-4 text-muted ms-1">h</span>
+                        </h1>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Sem dados válidos</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma_mediana|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-funnel" style="font-size: 5rem; color: #6f42c1;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-filter me-1"></i> Desconsidera extremos
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">TMA Crítico (Alta Prioridade)</h6>
+                
+                {% if kpi_tma_critico > 0 %}
+                    <p class="text-muted small mb-3">Tempo p/ Atender Emergências</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-danger">
+                            {{ kpi_tma_critico }}<span class="fs-4 text-muted ms-1">h</span>
+                        </h1>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Sem chamados críticos</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma_critico|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-lightning-charge me-1"></i> Corretivas de Alta Prioridade
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Mediana 1º Atendimento Crítico</h6>
+                
+                {% if kpi_tma_critico_mediana > 0 %}
+                    <p class="text-muted small mb-3">Valor Central (Horas)</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0" style="color: #6f42c1;">
+                            {{ kpi_tma_critico_mediana }}<span class="fs-4 text-muted ms-1">h</span>
+                        </h1>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Sem dados válidos</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma_critico_mediana|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-funnel" style="font-size: 5rem; color: #6f42c1;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-filter me-1"></i> Desconsidera extremos
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Downtime Médio Crítico</h6>
+                
+                {% if kpi_tma_equipamento_critico_parado > 0 %}
+                    <p class="text-muted small mb-3">Tempo Equipamento Parado</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-danger">
+                            {{ kpi_tma_equipamento_critico_parado }}<span class="fs-4 text-muted ms-1">h</span>
+                        </h1>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Sem paradas críticas</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma_equipamento_critico_parado|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-x-octagon-fill text-danger" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-clock-history me-1"></i> (Funcionamento - Parada)
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Mediana Tempo Equipamento Parado</h6>
+                
+                {% if kpi_tma_equipamento_critico_parado_mediana > 0 %}
+                    <p class="text-muted small mb-3">Valor Central (Horas)</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0" style="color: #6f42c1;">
+                            {{ kpi_tma_equipamento_critico_parado_mediana }}<span class="fs-4 text-muted ms-1">h</span>
+                        </h1>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Sem dados válidos</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_tma_equipamento_critico_parado_mediana|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-funnel" style="font-size: 5rem; color: #6f42c1;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-filter me-1"></i> Desconsidera extremos
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Taxa de Disponibilidade</h6>
+                
+                {% if kpi_taxa_disponibilidade > 0 %}
+                    <p class="text-muted small mb-3">Taxa de Operação</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-success">
+                            {{ kpi_taxa_disponibilidade }}<span class="fs-4 text-muted ms-1">%</span>
+                        </h1>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Sem dados para cálculo</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_taxa_disponibilidade|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-graph-up-arrow me-1"></i> (Horas Úteis - Paradas) / Úteis
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Disp. Equip. Críticos</h6>
+                
+                {% if kpi_taxa_disponibilidade_criticos > 0 %}
+                    <p class="text-muted small mb-3">Alta Prioridade</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-success">
+                            {{ kpi_taxa_disponibilidade_criticos }}<span class="fs-4 text-muted ms-1">%</span>
+                        </h1>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Sem dados críticos</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">--</h1>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_taxa_disponibilidade_criticos|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-shield-check text-success" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-activity me-1"></i> Foco em Prioridade Alta
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Equipamentos Indisponíveis</h6>
+                
+                {% if kpi_equip_indisponiveis > 0 %}
+                    <p class="text-muted small mb-3">Geraram parada no período</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-danger">
+                            {{ kpi_equip_indisponiveis }}
+                        </h1>
+                        <span class="badge bg-danger-subtle text-danger rounded-pill ms-3 fs-6">
+                            <i class="bi bi-x-circle"></i> Parados
+                        </span>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Nenhum equipamento parou</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0</h1>
+                        <span class="badge bg-light text-muted border rounded-pill ms-3 fs-6">
+                            <i class="bi bi-check-all"></i> 100% On
+                        </span>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_equip_indisponiveis|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-slash-circle-fill text-danger" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-calendar-event me-1"></i> Baseado na data de Abertura
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Críticos Indisponíveis</h6>
+                
+                {% if kpi_equip_criticos_indisponiveis > 0 %}
+                    <p class="text-muted small mb-3">Paradas de Alta Prioridade</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-danger">
+                            {{ kpi_equip_criticos_indisponiveis }}
+                        </h1>
+                        <span class="badge bg-danger text-white rounded-pill ms-3 fs-6">
+                            <i class="bi bi-exclamation-octagon"></i> Crítico
+                        </span>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Nenhum crítico parou</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0</h1>
+                        <span class="badge bg-light text-muted border rounded-pill ms-3 fs-6">
+                            <i class="bi bi-shield-check"></i> Seguro
+                        </span>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_equip_criticos_indisponiveis|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-radioactive text-danger" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-filter me-1"></i> Parada + Prioridade Alta
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">% Resolução no Período</h6>
+                
+                {% if kpi_resolucao_corretivas > 0 %}
+                    <p class="text-muted small mb-3">Abertas e Fechadas no Mês</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-primary">
+                            {{ kpi_resolucao_corretivas }}<span class="fs-4 text-muted ms-1">%</span>
+                        </h1>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Nenhuma resolvida no prazo</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0%</h1>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_resolucao_corretivas|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-check-all text-primary" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-speedometer2 me-1"></i> (Fechadas / Abertas) * 100
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Pendências / Equip.</h6>
+                
+                {% if kpi_pendencias_corretiva > 0 %}
+                    <p class="text-muted small mb-3">Média de OSs Abertas por Tag</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-warning">
+                            {{ kpi_pendencias_corretiva }}
+                        </h1>
+                        <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill ms-3 fs-6">
+                            <i class="bi bi-list-task"></i> Acúmulo
+                        </span>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Sem pendências registradas</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0</h1>
+                        <span class="badge bg-light text-muted border rounded-pill ms-3 fs-6">
+                            <i class="bi bi-check2-circle"></i> Em dia
+                        </span>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_pendencias_corretiva|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-hourglass-split text-warning" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-calculator me-1"></i> (Abertas + Pendentes) / Tags
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Cumprimento Preventiva</h6>
+                
+                {% if kpi_cumprimento_preventiva > 0 %}
+                    <p class="text-muted small mb-3">Executadas / Abertas</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-success">
+                            {{ kpi_cumprimento_preventiva }}<span class="fs-4 text-muted ms-1">%</span>
+                        </h1>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Nenhuma preventiva executada</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0%</h1>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_cumprimento_preventiva|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-clipboard-check text-success" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-list-check me-1"></i> Aderência ao Plano
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Cumprimento Calibração</h6>
+                
+                {% if kpi_cumprimento_calibracao > 0 %}
+                    <p class="text-muted small mb-3">Executadas / Abertas</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-success">
+                            {{ kpi_cumprimento_calibracao }}<span class="fs-4 text-muted ms-1">%</span>
+                        </h1>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Nenhuma preventiva executada</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0%</h1>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_cumprimento_calibracao|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-clipboard-check text-success" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-list-check me-1"></i> Aderência ao Plano
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Cumprimento Treinamento</h6>
+                
+                {% if kpi_cumprimento_treinamento > 0 %}
+                    <p class="text-muted small mb-3">Executadas / Abertas</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-success">
+                            {{ kpi_cumprimento_treinamento }}<span class="fs-4 text-muted ms-1">%</span>
+                        </h1>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Nenhuma preventiva executada</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0%</h1>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_cumprimento_treinamento|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-clipboard-check text-success" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-list-check me-1"></i> Aderência ao Plano
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-body p-4 position-relative">
+                
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Cumprimento TSE</h6>
+                
+                {% if kpi_cumprimento_tse > 0 %}
+                    <p class="text-muted small mb-3">Executadas / Abertas</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-success">
+                            {{ kpi_cumprimento_tse }}<span class="fs-4 text-muted ms-1">%</span>
+                        </h1>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Nenhuma preventiva executada</p>
+                    <div class="d-flex align-items-center">
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0%</h1>
+                    </div>
+                {% endif %}
+
+                <div class="position-absolute top-0 end-0 p-3 {{ kpi_cumprimento_tse|yesno:'opacity-10,opacity-0' }}">
+                    <i class="bi bi-clipboard-check text-success" style="font-size: 5rem;"></i>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light border-0 py-2 px-4">
+                <small class="text-muted">
+                    <i class="bi bi-list-check me-1"></i> Aderência ao Plano
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                    <h5 class="text-uppercase text-muted fw-bold small mb-0">
+                        <i class="bi bi-list-ol me-2"></i> Maiores Causas de Corretivas
+                    </h5>
+                    <small class="text-muted">Top 10 motivos de falha (Exceto Abertas/Pendentes)</small>
+                </div>
+                <div class="card-body p-4">
+                    {% if maiores_causas_corretivas %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light small text-muted">
+                                    <tr>
+                                        <th scope="col" style="width: 40%;">Causa</th>
+                                        <th scope="col" style="width: 40%;">Frequência Relativa</th>
+                                        <th scope="col" class="text-end">Qtd</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in maiores_causas_corretivas %}
+                                    <tr>
+                                        <td class="fw-bold text-dark small">{{ item.causa }}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress flex-grow-1" style="height: 6px;">
+                                                    <div class="progress-bar bg-danger" role="progressbar" 
+                                                        style="width: {{ item.percent }}%;" 
+                                                        aria-valuenow="{{ item.percent }}" 
+                                                        aria-valuemin="0" aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                                <span class="ms-2 small text-muted">{{ item.percent }}%</span>
+                                            </div>
+                                        </td>
+                                        <td class="text-end fw-bold">{{ item.qtd }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-clipboard-x fs-1 opacity-25"></i>
+                            <p class="mt-2 small">Nenhuma causa registrada para os filtros aplicados.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                    <h5 class="text-uppercase text-muted fw-bold small mb-0">
+                        <i class="bi bi-tools me-2"></i> OS Corretivas por Família
+                    </h5>
+                    <small class="text-muted">Acumulado dos últimos 3 anos (para os equipamentos filtrados)</small>
+                </div>
+                <div class="card-body p-4">
+                    {% if tabela_corretivas_familia %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light small text-muted">
+                                    <tr>
+                                        <th scope="col">Família</th>
+                                        <th scope="col" class="text-end">Qtd. Corretivas</th>
+                                        <th scope="col" style="width: 30%;">Impacto Visual</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in tabela_corretivas_familia %}
+                                    <tr>
+                                        <td class="fw-bold text-dark small">{{ item.familia }}</td>
+                                        <td class="text-end fw-bold">{{ item.qtd_corretivas }}</td>
+                                        <td>
+                                            {% with max_val=tabela_corretivas_familia.0.qtd_corretivas %}
+                                                <div class="progress" style="height: 6px;">
+                                                    <div class="progress-bar bg-danger" role="progressbar" 
+                                                            style="width: {% widthratio item.qtd_corretivas max_val 100 %}%;" 
+                                                            aria-valuenow="{{ item.qtd_corretivas }}" 
+                                                            aria-valuemin="0" aria-valuemax="{{ max_val }}">
+                                                    </div>
+                                                </div>
+                                            {% endwith %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-clipboard-x fs-1 opacity-25"></i>
+                            <p class="mt-2 small">Nenhuma corretiva encontrada nos últimos 3 anos para estes equipamentos.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 
