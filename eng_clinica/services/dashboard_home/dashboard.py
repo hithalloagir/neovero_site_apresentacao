@@ -462,3 +462,68 @@ def get_detalhes_equipamentos_criticos_indisponiveis(df_merged):
 
     # Retorna ordenado por dias parado (maior para menor)
     return df_parados[cols_existentes_final].sort_values('dias_parado', ascending=False).to_dict('records')
+
+
+def get_mtbf_medio_geral(df_merged, df_equip_medicos):
+    """
+    KPI - MTBF (TMEF) Geral em DIAS.
+    Fórmula: (Dias do Ano Potenciais - Dias de Downtime) / Qtd OS Corretivas Fechadas no Ano.
+    """
+    if df_equip_medicos is None or df_equip_medicos.empty:
+        return 0.0
+
+    # 1. Definição do Período: Início do ano atual até hoje
+    hoje = pd.Timestamp.now()
+    dt_ini = hoje.replace(month=1, day=1, hour=0, minute=0, second=0)
+    dt_fim = hoje
+    dias_periodo = (dt_fim - dt_ini).days + 1
+
+    # 2. Qtd Equipamentos (Universo)
+    df_e = df_equip_medicos.copy()
+    df_e = df_e.dropna(subset=['tag'])
+    df_e = df_e[df_e['tag'] != '']
+    qtd_equipamentos = df_e['tag'].nunique()
+
+    if qtd_equipamentos == 0:
+        return 0.0
+
+    # Tempo que o parque poderia trabalhar sem quebrar (Dias)
+    tempo_total_potencial_dias = dias_periodo * qtd_equipamentos
+
+    if df_merged is None or df_merged.empty:
+        return round(tempo_total_potencial_dias, 1)
+
+    # 3. Filtrar OS (Apenas Corretivas Fechadas no Ano)
+    df_o = df_merged.copy()
+    df_o = df_o.dropna(subset=['abertura', 'fechamento'])
+
+    # Filtra as fechadas apenas este ano
+    df_o = df_o[(df_o['fechamento'] >= dt_ini) & (df_o['fechamento'] <= dt_fim)]
+
+    if 'tipomanutencao' in df_o.columns:
+        df_o = df_o[df_o['tipomanutencao'].str.upper() == 'CORRETIVA']
+
+    if 'situacao' in df_o.columns:
+        df_o = df_o[df_o['situacao'].str.upper() == 'FECHADA']
+
+    df_o = df_o.drop_duplicates(subset=['os', 'tag', 'local_api'])
+    total_os_corretivas = df_o.shape[0]
+
+    # Se não houve quebras resolvidas no ano, o MTBF é o potencial total
+    if total_os_corretivas == 0:
+        return round(tempo_total_potencial_dias, 1)
+
+    # 4. Calcular Downtime (Dias)
+    df_o['tempo_parado_dias'] = (df_o['fechamento'] - df_o['abertura']).dt.total_seconds() / 86400
+    df_o = df_o[df_o['tempo_parado_dias'] > 0]
+
+    tempo_total_parado_dias = df_o['tempo_parado_dias'].sum()
+
+    # 5. Cálculo Final do TMEF
+    disponibilidade_dias = tempo_total_potencial_dias - tempo_total_parado_dias
+    if disponibilidade_dias < 0:
+        disponibilidade_dias = 0
+
+    tmef_dias = disponibilidade_dias / total_os_corretivas
+
+    return round(tmef_dias, 1)
