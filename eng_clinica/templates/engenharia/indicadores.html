@@ -77,36 +77,43 @@
         <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
             <div class="card-body p-4 position-relative">
                 
-                <h6 class="text-uppercase text-muted fw-bold small mb-2">Manutenção Corretiva</h6>
+                <h6 class="text-uppercase text-muted fw-bold small mb-2">Taxa de Resolução - Corretivas</h6>
                 
-                {% if total_os_corretiva > 0 %}
-                    <p class="text-muted small mb-3">OSs fechadas no período</p>
+                {% if abertas_corretiva > 0 %}
+                    <p class="text-muted small mb-3">Concluídas dentre as abertas no período</p>
                     <div class="d-flex align-items-center">
-                        <h1 class="display-4 fw-bold mb-0 text-danger">
-                            {{ total_os_corretiva }}
+                        
+                        <h1 class="display-4 fw-bold mb-0 {% if taxa_corretiva == 100 %}text-success{% else %}text-primary{% endif %}">
+                            {{ taxa_corretiva }}<span class="fs-4">%</span>
                         </h1>
-                        <span class="badge bg-danger-subtle text-danger rounded-pill ms-3 fs-6">
-                            <i class="bi bi-tools"></i> Fechadas
+                        
+                        <span class="badge {% if taxa_corretiva == 100 %}bg-success-subtle text-success{% else %}bg-primary-subtle text-primary{% endif %} rounded-pill ms-3 fs-6">
+                            <i class="bi bi-tools"></i> {{ fechadas_corretiva }} de {{ abertas_corretiva }}
                         </span>
                     </div>
+                    
+                    <div class="progress mt-3" style="height: 6px;">
+                        <div class="progress-bar {% if taxa_corretiva == 100 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ taxa_corretiva }}%;" aria-valuenow="{{ taxa_corretiva }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+
                 {% else %}
-                    <p class="text-muted small mb-3">Nenhuma corretiva fechada</p>
+                    <p class="text-muted small mb-3">Nenhuma corretiva aberta no período</p>
                     <div class="d-flex align-items-center">
-                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0</h1>
+                        <h1 class="display-4 fw-bold mb-0 text-muted opacity-25">0%</h1>
                         <span class="badge bg-light text-muted border rounded-pill ms-3 fs-6">
                             <i class="bi bi-check2-all"></i> Tudo OK
                         </span>
                     </div>
                 {% endif %}
 
-                <div class="position-absolute top-0 end-0 p-3 {{ total_os_corretiva|yesno:'opacity-10,opacity-0' }}">
-                    <i class="bi bi-wrench-adjustable text-danger" style="font-size: 5rem;"></i>
+                <div class="position-absolute top-0 end-0 p-3 {% if abertas_corretiva > 0 %}opacity-10{% else %}opacity-0{% endif %}">
+                    <i class="bi bi-wrench-adjustable {% if taxa_corretiva == 100 %}text-success{% else %}text-primary{% endif %}" style="font-size: 5rem;"></i>
                 </div>
             </div>
             
             <div class="card-footer bg-light border-0 py-2 px-4">
                 <small class="text-muted">
-                    <i class="bi bi-calendar-check me-1"></i> Data Ref: Fechamento
+                    <i class="bi bi-calendar-check me-1"></i> Data Ref: <b>Abertura da OS</b>
                 </small>
             </div>
         </div>

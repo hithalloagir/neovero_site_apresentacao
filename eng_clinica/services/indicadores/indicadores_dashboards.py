@@ -45,48 +45,62 @@ def get_total_equipamentos_cadastrados(df_equip, data_inicio=None, data_fim=None
 
 def get_total_os_corretivas(df_os, data_inicio=None, data_fim=None):
     """
-    Retorna o total de OSs CORRETIVAS fechadas no período.
+    Retorna a Taxa de Conclusão de OSs Corretivas (%).
     Regras:
-      - Date Range Dimension: fechamento
+      - Date Range Dimension: ABERTURA (Dentre as abertas no período...)
       - Filter: tipomanutencao = 'CORRETIVA'
-      - Filter: MenosDuplicadas
+      - Exclude: situacao = 'CANCELADA' ou 'INATIVAÇÃO'
+      - Retorna: (Taxa %, Qtd Fechadas, Qtd Total)
     """
     if df_os.empty:
-        return 0
+        return 0.0, 0, 0
 
     df = df_os.copy()
 
-    # 1. Garante conversão de data (fechamento)
-    if 'fechamento' in df.columns:
-        df['fechamento'] = pd.to_datetime(df['fechamento'], errors='coerce')
-        df = df.dropna(subset=['fechamento'])
+    # 1. Filtro de Data (Dimension: ABERTURA)
+    if 'abertura' in df.columns:
+        df['abertura'] = pd.to_datetime(df['abertura'], errors='coerce')
+        df = df.dropna(subset=['abertura'])
     else:
-        return 0
+        return 0.0, 0, 0
 
-    # 2. Filtro de Data (Dimension: Fechamento)
     if data_inicio:
-        df = df[df['fechamento'] >= pd.to_datetime(data_inicio)]
+        df = df[df['abertura'] >= pd.to_datetime(data_inicio)]
 
     if data_fim:
         fim = pd.to_datetime(data_fim).replace(hour=23, minute=59, second=59)
-        df = df[df['fechamento'] <= fim]
+        df = df[df['abertura'] <= fim]
 
     if df.empty:
-        return 0
+        return 0.0, 0, 0
 
-    # 3. Filtro de Tipo: Corretivas
-    # Normaliza para maiúsculo para garantir
+    # 2. Filtro de Tipo: Corretivas
     if 'tipomanutencao' in df.columns:
-        df = df[df['tipomanutencao'].str.upper() == 'CORRETIVA']
+        df = df[df['tipomanutencao'].str.upper().str.contains('CORRETIVA', na=False)]
+
+    # 3. Remover Canceladas (Para não prejudicar a porcentagem de eficiência)
+    if 'situacao' in df.columns:
+        df = df[~df['situacao'].str.upper().isin(['CANCELADA', 'INATIVAÇÃO'])]
 
     if df.empty:
-        return 0
+        return 0.0, 0, 0
 
     # 4. Filtro: MenosDuplicadas (OS + Tag + Local)
     df = df.drop_duplicates(subset=['os', 'tag', 'local_api'])
 
-    # 5. Retorna Contagem
-    return df.shape[0]
+    # 5. Cálculos para a Porcentagem
+    total_abertas = df.shape[0]
+
+    if total_abertas == 0:
+        return 0.0, 0, 0
+
+    # Conta quantas destas estão fechadas
+    total_fechadas = df[df['situacao'].str.upper() == 'FECHADA'].shape[0]
+
+    # Calcula a porcentagem
+    taxa_conclusao = (total_fechadas / total_abertas) * 100
+
+    return round(taxa_conclusao, 1), total_fechadas, total_abertas
 
 
 def get_maiores_causas_corretivas(df_os, data_inicio=None, data_fim=None):

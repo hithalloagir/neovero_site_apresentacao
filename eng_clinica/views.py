@@ -412,7 +412,7 @@ def engenharia_clinica_indicadores(request):
     t_calc = time.time()
 
     total_equipamentos_cadastrados = get_total_equipamentos_cadastrados(df_equip, data_inicio, data_fim)
-    total_os_corretiva = get_total_os_corretivas(df_os, data_inicio, data_fim)
+    taxa_corretiva, fechadas_corretiva, abertas_corretiva = get_total_os_corretivas(df_os, data_inicio, data_fim)
     maiores_causas_corretivas = get_maiores_causas_corretivas(df_os, data_inicio, data_fim)
 
     # ATENÇÃO: MTBF agora recebe df_os também para evitar query no banco
@@ -446,7 +446,9 @@ def engenharia_clinica_indicadores(request):
         'display_fim': display_fim,
         # Indicadores
         'total_equipamentos_cadastrados': total_equipamentos_cadastrados,
-        'total_os_corretiva': total_os_corretiva,
+        'taxa_corretiva': taxa_corretiva,
+        'fechadas_corretiva': fechadas_corretiva,
+        'abertas_corretiva': abertas_corretiva,
         'maiores_causas_corretivas': maiores_causas_corretivas,
         'kpi_mtbf': kpi_mtbf,
         'kpi_mttr': kpi_mttr,

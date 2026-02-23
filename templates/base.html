@@ -92,10 +92,12 @@
             function showLoader() {
                 if (loader) loader.classList.remove('d-none');
             }
+            window.showLoader = showLoader;
 
             function hideLoader() {
                 if (loader) loader.classList.add('d-none');
             }
+            window.hideLoader = hideLoader;
 
             // 1. Intercepta cliques em Links
             document.querySelectorAll('a').forEach(link => {
