@@ -475,6 +475,24 @@ def get_mtbf_por_familia_aggrid(df_merged, df_equip_medicos):
     # 1. Base de Equipamentos (O Universo)
     df_e = df_equip_medicos.copy()
 
+    familias_validas = [
+        "ADAPTADOR ENDOSCOPIO", "ANALISADOR DE GASES RESPIRATÓRIOS", "APARELHO DE ANESTESIA",
+        "APARELHO DE ASPIRAÇÃO DE SECREÇÃO COMPACTO", "APARELHO DE FOTOTERAPIA", "APARELHO DE PRESSAO",
+        "ASPIRADOR", "AUTOCLAVE", "BALANCA", "BERCO AQUECIDO", "BISTURI ELETRICO", "BOMBA DE INFUSAO",
+        "BOMBA INFUSAO", "CAPNOGRAFO", "CARDIOVERSOR", "CAMA HOSPITALAR", "CPAP", "DESFIBRILADOR",
+        "ELETROCARDIOGRAFO", "ENDOSCOPIO", "ESFIGMOMANOMETRO", "FOCO CIRURGICO", "FOTOTERAPIA",
+        "HEMODIALISE", "INCUBADORA", "LARINGOSCOPIO", "MARCAPASSO", "MESA CIRURGICA", "MONITOR",
+        "MONITOR MULTIPARAMETRICO", "MONITOR PACIENTE", "NEBULIZADOR", "OXIMETRO", "OTOSCOPIO",
+        "OFTALMOSCOPIO", "RAIO X", "RESPIRADOR", "TOMOGRAFO", "ULTRASSOM", "VENTILADOR",
+        "VENTILADOR PULMONAR", "VENTILADOR PULMONAR DE TRANSPORTE", "VENTILADOR TRANSPORTE",
+        "VECTOELETRONISTAMOGRAFO"
+    ]
+
+    df_e = df_e[df_e['familia'].isin(familias_validas)]
+
+    if df_e.empty:
+        return []
+
     # Prepara as datas para calcular a idade
     if 'instalacao' in df_e.columns and 'cadastro' in df_e.columns:
         df_e['instalacao'] = pd.to_datetime(df_e['instalacao'], errors='coerce')
