@@ -31,6 +31,9 @@ def home(request):
     empresas_disponiveis = ConsultaOsNew.objects.exclude(empresa__isnull=True).exclude(empresa='').values_list('empresa', flat=True).distinct().order_by('empresa')
     empresa_selecionada = request.GET.get('empresa')
 
+    if empresa_selecionada is None:
+        empresa_selecionada = 'HDS'
+
     # ---------------------------------------------------------
     # 2. CARREGAMENTO DE DADOS (OS)
     # ---------------------------------------------------------
