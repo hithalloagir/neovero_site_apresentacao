@@ -464,66 +464,96 @@ def get_detalhes_equipamentos_criticos_indisponiveis(df_merged):
     return df_parados[cols_existentes_final].sort_values('dias_parado', ascending=False).to_dict('records')
 
 
-def get_mtbf_medio_geral(df_merged, df_equip_medicos):
+def get_mtbf_por_familia_aggrid(df_merged, df_equip_medicos):
     """
-    KPI - MTBF (TMEF) Geral em DIAS.
-    Fórmula: (Dias do Ano Potenciais - Dias de Downtime) / Qtd OS Corretivas Fechadas no Ano.
+    Retorna os dados de MTBF por Família para o AG Grid.
+    Calcula a idade desde a Instalação/Cadastro e usa TODAS as corretivas fechadas.
     """
     if df_equip_medicos is None or df_equip_medicos.empty:
-        return 0.0
+        return []
 
-    # 1. Definição do Período: Início do ano atual até hoje
-    hoje = pd.Timestamp.now()
-    dt_ini = hoje.replace(month=1, day=1, hour=0, minute=0, second=0)
-    dt_fim = hoje
-    dias_periodo = (dt_fim - dt_ini).days + 1
-
-    # 2. Qtd Equipamentos (Universo)
+    # 1. Base de Equipamentos (O Universo)
     df_e = df_equip_medicos.copy()
-    df_e = df_e.dropna(subset=['tag'])
-    df_e = df_e[df_e['tag'] != '']
-    qtd_equipamentos = df_e['tag'].nunique()
 
-    if qtd_equipamentos == 0:
-        return 0.0
+    # Prepara as datas para calcular a idade
+    if 'instalacao' in df_e.columns and 'cadastro' in df_e.columns:
+        df_e['instalacao'] = pd.to_datetime(df_e['instalacao'], errors='coerce')
+        df_e['cadastro'] = pd.to_datetime(df_e['cadastro'], errors='coerce')
+        df_e['data_ref'] = df_e['instalacao'].fillna(df_e['cadastro'])
+    else:
+        return []
 
-    # Tempo que o parque poderia trabalhar sem quebrar (Dias)
-    tempo_total_potencial_dias = dias_periodo * qtd_equipamentos
+    # Remove o que não tem data ou não tem família
+    df_e = df_e.dropna(subset=['data_ref', 'tag', 'familia'])
+    df_e = df_e[df_e['familia'] != '']
+    df_e = df_e.drop_duplicates(subset=['tag'])
 
-    if df_merged is None or df_merged.empty:
-        return round(tempo_total_potencial_dias, 1)
+    # Calcula dias de vida até hoje
+    hoje = pd.Timestamp.now()
+    df_e['dias_vida'] = (hoje - df_e['data_ref']).dt.days
+    df_e = df_e[df_e['dias_vida'] >= 0]  # Remove dados inconsistentes (datas no futuro)
 
-    # 3. Filtrar OS (Apenas Corretivas Fechadas no Ano)
-    df_o = df_merged.copy()
-    df_o = df_o.dropna(subset=['abertura', 'fechamento'])
+    # Agrupa por Família para saber o potencial total
+    df_fam = df_e.groupby('familia').agg(
+        qtd_equipamentos=('tag', 'count'),
+        total_dias_vida=('dias_vida', 'sum')
+    ).reset_index()
 
-    # Filtra as fechadas apenas este ano
-    df_o = df_o[(df_o['fechamento'] >= dt_ini) & (df_o['fechamento'] <= dt_fim)]
+    # 2. Filtrar as Fato (Ordens de Serviço)
+    if df_merged is not None and not df_merged.empty:
+        df_o = df_merged.copy()
+        df_o = df_o.dropna(subset=['abertura', 'fechamento'])
 
-    if 'tipomanutencao' in df_o.columns:
-        df_o = df_o[df_o['tipomanutencao'].str.upper() == 'CORRETIVA']
+        # Filtros de Regra: Corretiva + Fechada
+        if 'tipomanutencao' in df_o.columns:
+            df_o = df_o[df_o['tipomanutencao'].str.upper().str.contains('CORRETIVA', na=False)]
+        if 'situacao' in df_o.columns:
+            df_o = df_o[df_o['situacao'].str.upper() == 'FECHADA']
 
-    if 'situacao' in df_o.columns:
-        df_o = df_o[df_o['situacao'].str.upper() == 'FECHADA']
+        df_o = df_o.drop_duplicates(subset=['os', 'tag', 'local_api'])
 
-    df_o = df_o.drop_duplicates(subset=['os', 'tag', 'local_api'])
-    total_os_corretivas = df_o.shape[0]
+        # Merge para garantir que a OS pertence a um equipamento médico e pegar a Família
+        df_o_fam = pd.merge(df_o, df_e[['tag', 'familia']], on='tag', how='inner')
 
-    # Se não houve quebras resolvidas no ano, o MTBF é o potencial total
-    if total_os_corretivas == 0:
-        return round(tempo_total_potencial_dias, 1)
+        # Tempo Parado (em dias)
+        df_o_fam['downtime_dias'] = (df_o_fam['fechamento'] - df_o_fam['abertura']).dt.total_seconds() / 86400
+        df_o_fam = df_o_fam[df_o_fam['downtime_dias'] >= 0]
 
-    # 4. Calcular Downtime (Dias)
-    df_o['tempo_parado_dias'] = (df_o['fechamento'] - df_o['abertura']).dt.total_seconds() / 86400
-    df_o = df_o[df_o['tempo_parado_dias'] > 0]
+        # Agrupa as OSs por família
+        os_agrupado = df_o_fam.groupby('familia').agg(
+            total_os=('os', 'count'),
+            total_downtime=('downtime_dias', 'sum')
+        ).reset_index()
 
-    tempo_total_parado_dias = df_o['tempo_parado_dias'].sum()
+        # Junta os equipamentos com as OSs
+        df_fam = pd.merge(df_fam, os_agrupado, on='familia', how='left')
 
-    # 5. Cálculo Final do TMEF
-    disponibilidade_dias = tempo_total_potencial_dias - tempo_total_parado_dias
-    if disponibilidade_dias < 0:
-        disponibilidade_dias = 0
+    # 3. Preenche as famílias que NUNCA quebraram com zeros
+    if 'total_os' not in df_fam.columns:
+        df_fam['total_os'] = 0
+        df_fam['total_downtime'] = 0
+    else:
+        df_fam['total_os'] = df_fam['total_os'].fillna(0)
+        df_fam['total_downtime'] = df_fam['total_downtime'].fillna(0)
 
-    tmef_dias = disponibilidade_dias / total_os_corretivas
+    # 4. O Cálculo Final do MTBF (TMEF)
+    # Disponibilidade = Total de Vida - Total Parado
+    df_fam['disponibilidade'] = df_fam['total_dias_vida'] - df_fam['total_downtime']
+    df_fam.loc[df_fam['disponibilidade'] < 0, 'disponibilidade'] = 0
 
-    return round(tmef_dias, 1)
+    import numpy as np
+    # Se total_os > 0, MTBF = Disponibilidade / OS
+    # Se NUNCA quebrou, o MTBF atual é igual à média de idade da frota daquela família
+    df_fam['mtbf_dias'] = np.where(
+        df_fam['total_os'] > 0,
+        df_fam['disponibilidade'] / df_fam['total_os'],
+        df_fam['total_dias_vida'] / df_fam['qtd_equipamentos']
+    )
+
+    df_fam['mtbf_dias'] = df_fam['mtbf_dias'].round(1)
+
+    # Ordena para mostrar as piores famílias (MTBF Menor) no topo da tabela
+    df_fam = df_fam.sort_values('mtbf_dias', ascending=True)
+    print(df_fam[['familia', 'qtd_equipamentos', 'total_os', 'total_dias_vida', 'total_downtime', 'disponibilidade', 'mtbf_dias']])
+
+    return df_fam[['familia', 'qtd_equipamentos', 'total_os', 'mtbf_dias']].to_dict('records')

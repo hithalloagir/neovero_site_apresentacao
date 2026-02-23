@@ -17,7 +17,7 @@ from eng_clinica.services.dashboard_home.dashboard import (
     get_detalhes_equipamentos_parados,
     get_equipamentos_criticos_indisponiveis_os,
     get_detalhes_equipamentos_criticos_indisponiveis,
-    get_mtbf_medio_geral,
+    get_mtbf_por_familia_aggrid,
 )
 
 
@@ -61,7 +61,7 @@ def home(request):
     if empresa_selecionada:
         qs_equip_base = qs_equip_base.filter(empresa=empresa_selecionada)
 
-    cols_equip = ['tag', 'empresa', 'tipoequipamento', 'modelo']
+    cols_equip = ['tag', 'empresa', 'tipoequipamento', 'modelo', 'familia', 'cadastro', 'instalacao']
 
     # Cria o DataFrame de Equipamentos
     df_equip = pd.DataFrame(list(qs_equip_base.values(*cols_equip)))
@@ -135,7 +135,7 @@ def home(request):
     lista_equipamentos_criticos_indisponiveis = get_detalhes_equipamentos_criticos_indisponiveis(df_merged)
 
     # KPI MTBF Médio Geral
-    kpi_mtbf = get_mtbf_medio_geral(df_merged, df_equip_medicos)
+    lista_mtbf_familia = get_mtbf_por_familia_aggrid(df_merged, df_equip_medicos)
 
     # ---------------------------------------------------------
     # 6. CONTEXTO FINAL
@@ -170,7 +170,7 @@ def home(request):
         'lista_equipamentos_criticos_indisponiveis': lista_equipamentos_criticos_indisponiveis,
 
         # KPI MTBF Médio Geral
-        'kpi_mtbf': kpi_mtbf,
+        'lista_mtbf_familia': lista_mtbf_familia,
     }
 
     print(f"🚀 [HOME] Tempo total de carga: {time.time() - start_total:.4f}s")

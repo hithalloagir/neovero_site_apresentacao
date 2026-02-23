@@ -218,6 +218,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const gridOptions = {
             columnDefs: columnDefs,
             rowData: rowData,
+            domLayout: 'autoHeight',
             pagination: true,
             paginationPageSize: 10,
             defaultColDef: {
@@ -287,6 +288,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Configurações do Grid
         const gridOptionsIndisponiveis = {
             columnDefs: columnDefs,
+            domLayout: 'autoHeight',
             rowData: rowData,
             pagination: true,
             paginationPageSize: 10,
@@ -310,8 +312,68 @@ document.addEventListener('DOMContentLoaded', function() {
                 filterOoo: 'Filtrar...',
             }
         };
-
         // Inicializa o Grid
         new agGrid.Grid(gridDivIndisponiveis, gridOptionsIndisponiveis);
+    }
+
+    // ==========================================
+    // AG Grid - MTBF POR FAMÍLIA
+    // ==========================================
+    const gridDivMtbf = document.querySelector('#gridMtbfFamilia');
+    const dataTagMtbf = document.getElementById('lista_mtbf_familia');
+    
+    if (gridDivMtbf && dataTagMtbf) {
+        try {
+            const rowDataMtbf = JSON.parse(dataTagMtbf.textContent);
+
+            const columnDefsMtbf = [
+                { field: "familia", headerName: "Família de Equipamento", flex: 2, filter: true },
+                { field: "qtd_equipamentos", headerName: "Qtd no Parque", flex: 1, filter: 'agNumberColumnFilter' },
+                { field: "total_os", headerName: "Falhas Fechadas", flex: 1, filter: 'agNumberColumnFilter' },
+                { 
+                    field: "mtbf_dias", 
+                    headerName: "MTBF (Dias)", 
+                    flex: 1, 
+                    filter: 'agNumberColumnFilter',
+                    cellStyle: params => {
+                        // Colore de vermelho se a família quebra muito rápido (ex: menos de 45 dias)
+                        if (params.value > 0 && params.value < 45) {
+                            return {color: '#dc3545', fontWeight: 'bold'}; 
+                        } 
+                        // Colore de verde se demora muito a quebrar (ex: mais de 180 dias / 6 meses)
+                        else if (params.value > 180) {
+                            return {color: '#198754', fontWeight: 'bold'}; 
+                        }
+                        return {fontWeight: 'bold', color: '#333'};
+                    }
+                }
+            ];
+
+            const gridOptionsMtbf = {
+                columnDefs: columnDefsMtbf,
+                rowData: rowDataMtbf,
+                domLayout: 'autoHeight',
+                pagination: true,
+                paginationPageSize: 10,
+                defaultColDef: {
+                    sortable: true,
+                    resizable: true,
+                },
+                localeText: { 
+                    noRowsToShow: 'Nenhuma família encontrada.',
+                    page: 'Página', more: 'Mais', to: 'a', of: 'de',
+                    next: 'Próximo', last: 'Último', first: 'Primeiro', previous: 'Anterior'
+                }
+            };
+
+            // Nas versões mais recentes do AG-Grid, a criação do grid mudou ligeiramente:
+            if (typeof agGrid.createGrid === 'function') {
+                agGrid.createGrid(gridDivMtbf, gridOptionsMtbf);
+            } else {
+                new agGrid.Grid(gridDivMtbf, gridOptionsMtbf);
+            }
+        } catch (e) {
+            console.error("Erro ao carregar os dados do Grid MTBF:", e);
+        }
     }
 });
